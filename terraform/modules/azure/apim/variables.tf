@@ -12,7 +12,12 @@ variable apim_publisher_name{
   default = "Kognitiv"
 }
 
-variable named_values{
-  default = {}
-  type = map(string)
+variable "containername" {
+  default = "client-programs"
+}
+
+variable "storageaccountname" {
+}
+
+variable "keyvaultname" {
 }

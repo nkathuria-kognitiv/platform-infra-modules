@@ -26,12 +26,43 @@ resource "azurerm_api_management" "apim" {
   sku_name            = var.apim_sku
 }
 
-resource "azurerm_api_management_named_value" "named_value" {
+resource "azurerm_api_management_named_value" "containername" {
   resource_group_name = data.azurerm_resource_group.rsg.name
   api_management_name = azurerm_api_management.apim.name
-  count = "${length(var.named_values)}"
-  name  = "${keys(var.named_values)[count.index]}"
-  value = "${values(var.named_values)[count.index]}"
-  display_name = "${keys(var.named_values)[count.index]}" 
+  #count = "${length(var.named_values)}"
+  name  = "containername"
+  value = "${var.containername}"
+  display_name = "containername"
 }
+
+resource "azurerm_api_management_named_value" "storageaccountname" {
+  resource_group_name = data.azurerm_resource_group.rsg.name
+  api_management_name = azurerm_api_management.apim.name
+  #count = "${length(var.named_values)}"
+  name  = "containername"
+  value = "${var.storageaccountname}"
+  display_name = "storageaccountname"
+}
+
+resource "azurerm_api_management_named_value" "storageaccountname" {
+  resource_group_name = data.azurerm_resource_group.rsg.name
+  api_management_name = azurerm_api_management.apim.name
+  #count = "${length(var.named_values)}"
+  name  = "containername"
+  value = "${var.storageaccountname}"
+  display_name = "storageaccountname"
+}
+
+
+
+resource "azurerm_api_management_named_value" "keyvaultname" {
+  resource_group_name = data.azurerm_resource_group.rsg.name
+  api_management_name = azurerm_api_management.apim.name
+  #count = "${length(var.named_values)}"
+  name  = "containername"
+  value = "${var.keyvaultname}"
+  display_name = "keyvaultname"
+}
+
+
 
