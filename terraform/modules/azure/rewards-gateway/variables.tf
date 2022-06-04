@@ -1,0 +1,2 @@
+variable apim_name{}
+
