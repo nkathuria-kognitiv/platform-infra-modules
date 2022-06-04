@@ -13,6 +13,6 @@ variable apim_publisher_name{
 }
 
 variable named_values{
-  default = []
+  default = {}
   type = map(string)
 }
