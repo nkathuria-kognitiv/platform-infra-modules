@@ -1,4 +1,4 @@
-variable rsg_name{}
+#variable rsg_name{}
 
 variable apim_name{}
 
@@ -21,3 +21,8 @@ variable "storageaccountname" {
 
 variable "keyvaultname" {
 }
+
+variable "api_key_name" {
+}
+
+variable "resource_group_name" {}

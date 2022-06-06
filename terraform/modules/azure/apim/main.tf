@@ -14,7 +14,7 @@ provider "azurerm" {
 }
 
 data azurerm_resource_group "rsg"{
-  name = var.rsg_name
+  name = var.resource_group_name
 }
 
 resource "azurerm_api_management" "apim" {
@@ -47,8 +47,6 @@ resource "azurerm_api_management_named_value" "storageaccountname" {
   display_name = "storageaccountname"
 }
 
-
-
 resource "azurerm_api_management_named_value" "keyvaultname" {
   resource_group_name = data.azurerm_resource_group.rsg.name
   api_management_name = azurerm_api_management.apim.name
@@ -62,12 +60,11 @@ resource "azurerm_api_management_named_value" "keyvaultname" {
 resource "azurerm_api_management_named_value" "api_key"{
   resource_group_name = data.azurerm_resource_group.rsg.name
   api_management_name = azurerm_api_management.apim.name
-  name = "ln-uat-x-api-key"
-  display_name = "ln-uat-x-api-key"
+  name = var.api_key_name
+  display_name = var.api_key_name
   secret = true
   value_from_key_vault{
-    secret_id ="https://ccp-shared-services-kv.vault.azure.net/secrets/ln-uat-x-api-key"
+    secret_id ="https://${var.keyvaultname}.vault.azure.net/secrets/${var.api_key_name}"
   }
-
 }
 
