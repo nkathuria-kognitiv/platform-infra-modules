@@ -24,6 +24,9 @@ resource "azurerm_api_management" "apim" {
   publisher_name      = var.apim_publisher_name 
   resource_group_name = data.azurerm_resource_group.rsg.name
   sku_name            = var.apim_sku
+  identity {
+    type = "SystemAssigned"
+  }
 }
 
 resource "azurerm_api_management_named_value" "containername" {
@@ -56,4 +59,15 @@ resource "azurerm_api_management_named_value" "keyvaultname" {
 }
 
 
+resource "azurerm_api_management_named_value" "api_key"{
+  resource_group_name = data.azurerm_resource_group.rsg.name
+  api_management_name = azurerm_api_management.apim.name
+  name = "ln-uat-x-api-key"
+  display_name = "ln-uat-x-api-key"
+  secret = true
+  value_from_key_vault{
+    secret_id ="https://ccp-shared-services-kv.vault.azure.net/secrets/ln-uat-x-api-key"
+  }
+
+}
 
