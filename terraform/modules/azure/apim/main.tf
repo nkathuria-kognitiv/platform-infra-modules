@@ -17,6 +17,8 @@ data azurerm_resource_group "rsg"{
   name = var.resource_group_name
 }
 
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_api_management" "apim" {
   location            = data.azurerm_resource_group.rsg.location
   name                = var.apim_name
@@ -57,18 +59,119 @@ resource "azurerm_api_management_named_value" "keyvaultname" {
 }
 
 
-resource "azurerm_api_management_named_value" "api_key"{
+/*resource "azurerm_api_management_named_value" "api_key"{
   resource_group_name = data.azurerm_resource_group.rsg.name
   api_management_name = azurerm_api_management.apim.name
-  name = var.api_key_name
-  display_name = var.api_key_name
+  name = "${var.api_key_name}"
+  display_name = "${var.api_key_name}"
   secret = true
   value_from_key_vault{
     secret_id ="https://${var.keyvaultname}.vault.azure.net/secrets/${var.api_key_name}"
   }
+}*/
+
+data "azurerm_key_vault" "keyvault" {
+  name = "${var.keyvaultname}"
+  resource_group_name = data.azurerm_resource_group.rsg.name
+}
+
+resource "azurerm_key_vault_access_policy" "keyvault_apim_policy" {
+  key_vault_id = data.azurerm_key_vault.keyvault.id
+  tenant_id = data.azurerm_client_config.current.tenant_id
+  object_id = azurerm_api_management.apim.identity.0.principal_id
+
+  secret_permissions = [
+    "get"
+  ]
+
+  certificate_permissions = [
+    "get",
+    "list"
+  ]
+}
+
+output "system_managed_identity" {
+  value = azurerm_api_management.apim.identity.0.principal_id
+}
+
+data azurerm_storage_account "storageaccount"{
+  resource_group_name = "${var.resource_group_name}"
+  name = "ccpterraformbackend"
+}
+
+resource "azurerm_role_assignment" "apim_storageaccount_access" {
+  scope = data.azurerm_storage_account.storageaccount.id
+  principal_id = azurerm_api_management.apim.identity.0.principal_id
+  role_definition_name = "Storage Account Contributor"
+}
+
+#Health Probe API
+resource "azurerm_api_management_api" "apiHealthProbe" {
+  name                = "health-probe"
+  resource_group_name = "${var.resource_group_name}"
+  api_management_name = azurerm_api_management.apim.name
+  revision            = "1"
+  display_name        = "Health probe"
+  path                = "health-probe"
+  protocols           = ["https"]
+
+  subscription_key_parameter_names  {
+    header = "AppKey"
+    query = "AppKey"
+  }
+
+  import {
+  content_format = "swagger-json"
+  content_value  = <<JSON
+        {
+            "swagger": "2.0",
+            "info": {
+                "version": "1.0.0",
+                "title": "Health probe"
+            },
+            "host": "not-used-direct-response",
+            "basePath": "/",
+            "schemes": [
+                "https"
+            ],
+            "consumes": [
+                "application/json"
+            ],
+            "produces": [
+                "application/json"
+            ],
+            "paths": {
+                "/": {
+                    "get": {
+                        "operationId": "get-ping",
+                        "responses": {}
+                    }
+                }
+            }
+        }
+      JSON
+  }
+}
+
+# set api level policy
+resource "azurerm_api_management_api_policy" "apiHealthProbePolicy" {
+api_name            = azurerm_api_management_api.apiHealthProbe.name
+api_management_name = azurerm_api_management.apim.name
+resource_group_name = "${var.resource_group_name}"
+
+xml_content = <<XML
+    <policies>
+      <inbound>
+        <return-response>
+            <set-status code="200" />
+        </return-response>
+        <base />
+      </inbound>
+    </policies>
+  XML
 }
 
 resource "azurerm_api_management_policy" "apim_all_apis_policy" {
   xml_content = templatefile("apim_all_apis_policy.xml", {"tenant_id"="${var.tenant_id}", "apim_app_display_name"= "${var.apim_app_display_name}"})
-  api_management_id = azurerm_api_management.apim.id
+api_management_id = azurerm_api_management.apim.id
 }
