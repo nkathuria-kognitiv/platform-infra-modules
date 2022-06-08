@@ -1,0 +1,395 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <return-response>
+            <set-body>@(
+                JObject.FromObject
+                (new {
+                merchants = new object[] {
+                new {
+                id = "8490257",
+                localNames = new object[] {
+                new {
+                name = "Target",
+                language = "en",
+                images = new object[] {
+                new {
+
+                url = "ABC.com/images/image1.jpeg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "8490257"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+
+                webAddress = "ABC.com",
+                addresses = new object[] {
+                new {
+                id = "123",
+                type = "business",
+                addressLine1 = "800 Elm St",
+                addressLine2 = "",
+                city = "Wilmington",
+                state = "DE",
+                postalCode = "55555",
+                country = "USA"
+                }
+                },
+                socialMediaAccounts = new object[] {
+                new {
+                type = "twitter",
+                acountId = "xxxx"
+                },
+                new {
+                type = "facebook",
+                acountId = "xxxx"
+                }
+                },
+                categories = new object[] {
+                new {
+                id = "101",
+                name = "Home Decor",
+                subCategories = new object[] {
+                new {
+                id = "112",
+                name = "Decorative Storage",
+                subCategories = new object[] {
+                new {
+                id = "1123",
+                name = "Storage Basket"
+                },
+                new {
+                id = "1124",
+                name = "Storage Bins & Boxes"
+                }
+                }
+                },
+                new {
+                id = "102",
+                name = "Smart Home",
+                subCategories = new object[] {
+                new {
+                id = "1022",
+                name = "Smart Display"
+                },
+                new {
+                id = "1023",
+                name = "Smart Doorbells and Locks"
+                },
+                new {
+                id = "1024",
+                name = "Smart Lighting"
+                }
+                }
+                },
+                new {
+                id = "103",
+                name = "Bath",
+                subCategories = new object[] {
+                new {
+                id = "1032",
+                name = "Bath Towers"
+                },
+                new {
+                id = "1033",
+                name = "Shower Curtains & Accessories",
+                subCategories = new object[] {
+                new {
+                id = "10331",
+                name = "Soap & Lotion Dispensers"
+                },
+                new {
+                id = "10332",
+                name = "Shower Caddies"
+                }
+                }
+                },
+                new {
+                id = "1124",
+                name = "Storage Bins & Boxes"
+                }
+                }
+                }
+                }
+                }
+                }
+                },
+                new {
+                id = "11111111",
+                localNames = new object[] {
+                new {
+                name = "Apple",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Apple-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "11111111"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "15",
+                name = "Electronics"
+                }
+                }
+                },
+                new {
+                id = "120",
+                localNames = new object[] {
+                new {
+                name = "Bed Threds",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Bed_Thread-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "120"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "20",
+                name = "Flowers & Gifts"
+                }
+                }
+                },
+                new {
+                id = "130",
+                localNames = new object[] {
+                new {
+                name = "Doordash",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Doordash-logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "130"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "21",
+                name = "Food & Dining"
+                }
+                }
+                },
+                new {
+                id = "140",
+                localNames = new object[] {
+                new {
+                name = "BCF",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/BCF-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "140"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "23",
+                name = "Sports & Outdoors"
+                }
+                }
+                },
+                new {
+                id = "150",
+                localNames = new object[] {
+                new {
+                name = "Adidas",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Adidas-logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "150"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "22",
+                name = "Clothes & Fashion"
+                }
+                }
+                },
+                new {
+                id = "160",
+                localNames = new object[] {
+                new {
+                name = "Amazon",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Amazon-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "160"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "24",
+                name = "Marketplaces"
+                }
+                }
+                },
+                new {
+                id = "170",
+                localNames = new object[] {
+                new {
+                name = "Apero",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Apero-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "170"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "21",
+                name = "Food & Dining"
+                }
+                }
+                },
+                new {
+                id = "180",
+                localNames = new object[] {
+                new {
+                name = "Bonds",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/Bonds-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "180"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "22",
+                name = "Clothes & Fashion"
+                }
+                }
+                },
+                new {
+                id = "190",
+                localNames = new object[] {
+                new {
+                name = "David Jones",
+                language = "en",
+                images = new object[] {
+                new {
+                url = "https://samplesite.com/content/dam/nab/logos/david_jones-Logo.jpg",
+                type = "Logo"
+                }
+                }
+                }
+                },
+                externalReferenceId = new {
+                source = "LN",
+                value = "190"
+                },
+                type = "supplier",
+                typeStatus = "Active",
+                categories = new object[] {
+                new {
+                id = "22",
+                name = "Clothes & Fashion"
+                }
+                }
+                }
+
+                }
+                }
+                )
+                .ToString()
+                )</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

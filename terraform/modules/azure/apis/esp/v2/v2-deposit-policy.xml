@@ -1,0 +1,281 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <choose>
+            <!-- Check to see if backend is ALP-E -->
+            <when condition="@((string)((JObject)context.Variables["esp"]).SelectToken("backendLoyalty") == "alpe")">
+            <!-- Sets the backend base url -->
+            <set-backend-service base-url="@((string)((JObject)context.Variables["esp"]).SelectToken("alpe.apiUrlPrefix"))" />
+            <!-- Sets the specific endpoint to hit -->
+            <rewrite-uri template="@($"/members/{context.Request.MatchedParameters["memberId"]}/interactions")" copy-unmatched-params="true" />
+            <!-- Set necessary headers -->
+            <set-header name="Authorization" exists-action="override">
+                <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+            </set-header>
+            <set-method>POST</set-method>
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <!--<set-variable name="program" value="@((JObject.Parse((string)context.Variables["clientProgram"])))" />-->
+            <!-- Sets all fields from request as variables -->
+            <set-variable name="amount" value="@(context.Request.Body.As<JObject>(preserveContent: true).SelectToken("amount", false)?.Value<double>())" />
+            <set-variable name="orderReference" value="@(context.Request.Body.As<JObject>(preserveContent: true).SelectToken("orderReference", false)?.Value<string>())" />
+            <choose>
+                <when condition="@(context.Variables["amount"] != null && context.Variables.GetValueOrDefault<double>("amount") < 0)">
+                <set-variable name="inputErrors" value="@(true)" />
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-body template="liquid">
+                        [
+                        {
+                        "code": 1202,
+                        "message" : "'amount' must be a positive"
+                        }
+                        ]
+                    </set-body>
+                </return-response>
+            </when>
+        </choose>
+        <set-variable name="programmeCode" value="@(((JObject)context.Variables["esp"]).SelectToken("alpe.programmeCode"))" />
+        <set-variable name="interactionType" value="@{
+                    var valueFromBody = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("interactionType", false)?.Value<string>()?.Trim();
+                    if (!string.IsNullOrEmpty(valueFromBody))
+                    {
+                        return valueFromBody;
+                    }
+
+                    return (((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.interactionType"));
+                }" />
+        <set-variable name="dataPartnerCode" value="@{
+                    var valueFromBody = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("dataPartner", false)?.Value<string>()?.Trim();
+                    if (!string.IsNullOrEmpty(valueFromBody))
+                    {
+                        return valueFromBody;
+                    }
+
+                    return (((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.dataPartnerCode"));
+                }" />
+        <set-variable name="currency" value="@{
+                    var valueFromBody = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("currencyCode", false)?.Value<string>()?.Trim();
+                    if (!string.IsNullOrEmpty(valueFromBody))
+                    {
+                        return valueFromBody;
+                    }
+
+                    return (((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.currency"));
+                }" />
+        <set-variable name="description" value="@{
+                    var description = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("description", false)?.Value<string>()?.Trim();
+                    if (description == null)
+                    {
+                        description = (((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.description")).ToString();
+                    }
+
+                    var orderReference = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("orderReference", false)?.Value<string>()?.Trim();
+                    if (string.IsNullOrEmpty(orderReference))
+                    {
+                        return description;
+                    }
+
+                    return orderReference + " - " + description;
+        }" />
+        <set-variable name="valueType" value="@(((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.valueType"))" />
+        <set-variable name="paymentType" value="@(((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.paymentType"))" />
+        <set-variable name="transactionType" value="@(((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.transactionType"))" />
+        <set-variable name="transactionOwner" value="@(((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.transactionOwner"))" />
+        <set-variable name="locationId" value="@{
+                    var valueFromBody = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("locationId", false)?.Value<string>()?.Trim();
+                    if (!string.IsNullOrEmpty(valueFromBody))
+                    {
+                        return valueFromBody;
+                    }
+
+                    return null;
+                }" />
+        <set-variable name="identityHash" value="@{
+                    var originalTransactionID = context.Request.Body.As<JObject>(preserveContent: true).SelectToken("originalTransactionID", false)?.Value<string>()?.Trim();
+                    if (string.IsNullOrEmpty(originalTransactionID))
+                    {
+                        return null;
+                    }
+
+                    var identityHashPrefix = ((JObject)context.Variables["esp"]).SelectToken("alpe.pointDeposit.identityHashPrefix");
+                    return identityHashPrefix + originalTransactionID;
+                }" />
+        <!-- Sets body to match request specification for deposit -->
+        <set-body template="liquid">
+            {
+            "_class": "com.ga.endeavour.platform.payload.capabilities.InteractionEvent",
+            "interactionType": "{{context.Variables["interactionType"]}}",
+            "memberId": "{{context.Request.MatchedParameters["memberId"]}}",
+            "programmeCode": "{{context.Variables["programmeCode"]}}",
+            {% if context.Variables["identityHash"] %}
+            "identityHash": "{{context.Variables["identityHash"]}}",
+            {% endif %}
+            {% if context.Variables["description"] %}
+            "description": "{{context.Variables["description"]}}",
+            {% else %}
+            "description": null,
+            {% endif %}
+            {% if context.Variables["dataPartnerCode"] %}
+            "dataPartnerCode": "{{context.Variables["dataPartnerCode"]}}",
+            {% else %}
+            "dataPartnerCode": null,
+            {% endif %}
+            "capabilities": {
+            {% if context.Variables["amount"] %}
+            "value":
+            [
+            {
+            "_type": "value",
+            "value": {{context.Variables["amount"]}},
+            {% if context.Variables["currency"] %}
+            "currency": "{{context.Variables["currency"]}}",
+            {% else %}
+            "currency": null,
+            {% endif %}
+            {% if context.Variables["valueType"] %}
+            "valueType": "{{context.Variables["valueType"]}}",
+            {% else %}
+            "valueType": null,
+            {% endif %}
+            {% if context.Variables["paymentType"] %}
+            "paymentType": "{{context.Variables["paymentType"]}}",
+            {% else %}
+            "paymentType": null,
+            {% endif %}
+            {% if context.Variables["transactionType"] %}
+            "transactionType": "{{context.Variables["transactionType"]}}",
+            {% else %}
+            "transactionType": null,
+            {% endif %}
+            {% if context.Variables["transactionOwner"] %}
+            "transactionOwner": "{{context.Variables["transactionOwner"]}}"
+            {% else %}
+            "transactionOwner": null
+            {% endif %}
+            }
+            ]{% if context.Variables["locationId"] %},{% endif %}
+            {% endif %}
+            {% if context.Variables["locationId"] %}
+            "location":
+            [
+            {
+            "_type": "location",
+            "locationReferenceId": "{{context.Variables["locationId"]}}"
+            }
+            ]
+            {% endif %}
+            }
+            }
+        </set-body>
+    </when>
+</choose>
+        </inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+<choose>
+    <!-- Check to see if backend is ALP-E -->
+    <when condition="@((string)((JObject)context.Variables["esp"]).SelectToken("backendLoyalty") == "alpe")">
+    <set-header name="Content-Type" exists-action="override">
+        <value>application/json</value>
+    </set-header>
+    <choose>
+        <!-- Determine if response was successful -->
+        <when condition="@(context.Response.StatusCode == 201)">
+            <!-- If so, grab interaction ID from header of response, and put it in response body -->
+            <set-variable name="interactionId" value="@{
+                            string[] value;
+                            if (context.Response.Headers.TryGetValue("Location", out value))
+                            {
+                                if(value != null && value.Length > 0)
+                                {
+                                    string[] valueParts = value[0].Split('/');
+                                    if (valueParts.Length > 0)
+                                    {
+                                        return valueParts[valueParts.Length - 1];
+                                    }
+                                }
+                            }
+                            return null;
+                        }" />
+            <set-status code="201" reason="Created" />
+            <set-body>@{
+                var response = new JObject();
+                response.Add("depositId", (string)context.Variables["interactionId"]);
+                return response.ToString();
+                }</set-body>
+        </when>
+        <!-- If response is not succcessful, grab body of unsuccessful response -->
+        <when condition="@{
+                        try
+                        {
+                            var jObject = context.Response.Body.As<JObject>(preserveContent: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            return false;
+                        }
+
+                        return true;
+                    }">
+            <set-status code="400" reason="Bad Request" />
+            <set-body template="liquid">
+
+
+
+                [
+                {% JSONArrayFor error in body.errors%}
+                {
+                "code"= 1,
+                "message" = "Enterprise Error: {{error.validationCode}}"
+                }
+                {% endJSONArrayFor %}
+                ]
+
+
+
+            </set-body>
+        </when>
+        <!-- Otherwise, send generic error -->
+        <otherwise>
+            <set-status code="400" reason="Bad Request" />
+            <set-body template="liquid">
+
+
+
+                [
+                {
+                "code": 1,
+                "message" : "Bad Request"
+                }
+                ]
+
+
+
+            </set-body>
+        </otherwise>
+    </choose>
+    <!-- If shadow copy is needed, make call to shadow copy here -->
+</when>
+</choose>
+        </outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

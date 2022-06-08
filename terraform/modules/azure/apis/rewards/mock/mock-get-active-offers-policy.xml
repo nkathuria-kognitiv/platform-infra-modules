@@ -1,0 +1,45 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <send-request mode="new" timeout="20" response-variable-name="blobResponse" ignore-error="false">
+            <set-url>@($"https://{{storageaccountname}}.blob.core.windows.net/mock-data/all-active-offers.json")</set-url>
+            <set-method>GET</set-method>
+            <set-header name="x-ms-version" exists-action="override">
+                <value>2019-07-07</value>
+            </set-header>
+            <authentication-managed-identity resource="https://storage.azure.com" />
+        </send-request>
+        <choose>
+            <when condition="@(((IResponse)context.Variables["blobResponse"]).StatusCode == 200)">
+            <set-variable name="mockData" value="@($"{((IResponse)context.Variables["blobResponse"]).Body.As<string>() }")" />
+        </when>
+            <otherwise>
+                <set-variable name="mockData" value="NotFound" />
+            </otherwise>
+        </choose>
+        <return-response>
+            <set-body>@((string)context.Variables["mockData"])</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

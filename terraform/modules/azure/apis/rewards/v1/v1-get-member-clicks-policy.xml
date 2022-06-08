@@ -1,0 +1,111 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-method>GET</set-method>
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+        </set-header>
+        <set-query-parameter name="memberId" exists-action="append">
+            <value>@(context.Request.MatchedParameters["valueOfExternalMemberId"])</value>
+        </set-query-parameter>
+        <set-query-parameter name="memberIdSource" exists-action="append">
+            <value>@(context.Request.MatchedParameters["sourceId"])</value>
+        </set-query-parameter>
+        <rewrite-uri template="/{programCode}/clicks" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <set-body>@{
+            var returnResponse = new JObject();
+            var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
+            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
+            returnResponse.Add("pageSize", (int)payLoad.SelectToken("pageSize"));
+            returnResponse.Add("totalNumberOfRecords", (int)payLoad.SelectToken("total"));
+            var results = (JArray)payLoad.SelectToken("results");
+
+            var clicks = new JArray();
+
+            foreach(JObject result in results) {
+            var click = new JObject();
+            click.Add("internalId",  (int)result.SelectToken("internalId"));
+            click.Add("externalId", (String)result.SelectToken("externalId"));
+            click.Add("date", result.SelectToken("createdDate"));
+
+
+            var merchantDTO = (JObject)result.SelectToken("merchantDTO");
+
+            if (merchantDTO != null) {
+            var merchantDetailsDTOs = (JArray)merchantDTO.SelectToken("merchantDetailsDTOs");
+            if (merchantDetailsDTOs != null) {
+
+
+            var merchant = new JObject();
+            merchant.Add("id", (String)merchantDTO.SelectToken("id"));
+
+
+
+            foreach(JObject merchantDetailsDTO in merchantDetailsDTOs) {
+
+            var localNameObj = new JObject();
+            localNameObj.Add("name", (String)merchantDetailsDTO.SelectToken("name"));
+            localNameObj.Add("language", (String)merchantDetailsDTO.SelectToken("language"));
+
+
+            var   merchantDigitalAssetDTOs = (JArray)merchantDetailsDTO.SelectToken("merchantDigitalAssetDTOs");
+
+            if (merchantDigitalAssetDTOs != null) {
+            var images = new JArray();
+            foreach(JObject image in merchantDigitalAssetDTOs) {
+
+            var imageObj = new JObject();
+            imageObj.Add("url",  (String)image.SelectToken("url"));
+            imageObj.Add("alt",  (String)image.SelectToken("altText"));
+            imageObj.Add("type",  (String)image.SelectToken("categoryType"));
+            imageObj.Add("order",  (String)image.SelectToken("displayOrder"));
+
+            images.Add(imageObj);
+            }
+            localNameObj.Add("images", images);
+            }
+
+            merchant.Add("localNames",  localNameObj);
+
+
+            }
+
+            click.Add("merchant", merchant);
+
+            }
+
+            }
+
+            clicks.Add(click);
+
+            }
+
+
+            returnResponse.Add("clicks", clicks);
+
+            return returnResponse.ToString();
+
+            }</set-body>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

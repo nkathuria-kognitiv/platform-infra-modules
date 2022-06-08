@@ -1,0 +1,80 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <choose>
+            <when condition="@((string)context.Request.MatchedParameters["memberIdSource"] == "MEID")">
+            <choose>
+                <when condition="@((string)context.Request.MatchedParameters["valueOfExternalMemberId"] == "1111")">
+                <return-response>
+                    <set-body>@{
+                        return JObject.FromObject
+                        (
+                        new {
+                        memberId = "4f76eacc-15a6-4c1c-8788-4abbf1593cd8"
+                        }
+                        )
+                        .ToString();
+                        }</set-body>
+                </return-response>
+            </when>
+            <when condition="@((string)context.Request.MatchedParameters["valueOfExternalMemberId"] == "2222")">
+            <return-response>
+                <set-body>@{
+                    return JObject.FromObject
+                    (
+                    new {
+                    memberId = "2h36kdjg-kf03-kf30-1023-kdj43dek4r3f"
+                    }
+                    )
+                    .ToString();
+                    }</set-body>
+            </return-response>
+        </when>
+        <otherwise>
+            <return-response>
+                <set-status code="404" />
+                <set-body>@{
+                    var response = new JObject();
+
+                    response.Add("message", "Member not found");
+                    return response.ToString();
+                    }</set-body>
+            </return-response>
+        </otherwise>
+    </choose>
+</when>
+<otherwise>
+<return-response>
+    <set-status code="404" />
+    <set-body>@{
+        var response = new JObject();
+
+        response.Add("message", "Source not found");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</otherwise>
+        </choose>
+        </inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

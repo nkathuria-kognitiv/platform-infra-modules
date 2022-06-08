@@ -1,0 +1,80 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - Only the <forward-request> policy element can appear within the <backend> section element.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy position the cursor at the desired insertion point and click on the round button associated with the policy.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Policies are applied in the order of their appearance, from the top down.
+-->
+<policies>
+    <inbound>
+        <!-- Validate the JSON Schema for all non-(GET,Delete) requests that have a Schema definition set -->
+        <choose>
+            <when condition="@(!string.Equals(context.Request.Method, "GET", StringComparison.OrdinalIgnoreCase) && !string.Equals(context.Request.Method, "DELETE", StringComparison.OrdinalIgnoreCase))">
+            <validate-content unspecified-content-type-action="prevent" max-size="102400" size-exceeded-action="prevent" errors-variable-name="requestBodyValidation">
+                <content type="application/json" validate-as="json" action="prevent" />
+            </validate-content>
+        </when>
+    </choose>
+    <!-- TODO: determine if programCode exists in URL before getting program code and making request to storage account -->
+    <set-variable name="programCode" value="@((string)context.Request.MatchedParameters["programCode"])" />
+    <!-- check for cached program object -->
+    <cache-lookup-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" variable-name="clientProgram" />
+    <choose>
+        <!-- If a cache miss call blob storage to get the data from container -->
+        <!--<when condition="@(!context.Variables.ContainsKey("clientProgram"))"> -->
+        <when condition="@(true)">
+            <send-request mode="new" timeout="20" response-variable-name="blobResponse" ignore-error="false">
+                <set-url>@($"https://{{storageaccountname}}.blob.core.windows.net/{{containername}}/{context.Variables.GetValueOrDefault<string>("programCode")}.json")</set-url>
+                <set-method>GET</set-method>
+                <set-header name="x-ms-version" exists-action="override">
+                    <value>2019-07-07</value>
+                </set-header>
+                <authentication-managed-identity resource="https://storage.azure.com" />
+            </send-request>
+            <choose>
+            <when condition="@(((IResponse)context.Variables["blobResponse"]).StatusCode == 200)">
+            <set-variable name="clientProgram" value="@($"{((IResponse)context.Variables["blobResponse"]).Body.As<string>() }")" />
+            <cache-store-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["clientProgram"])" duration="10" />
+        </when>
+        <otherwise>
+            <set-variable name="clientProgram" value="NotFound" />
+            <cache-store-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["clientProgram"])" duration="10" />
+        </otherwise>
+    </choose>
+</when>
+        </choose>
+<choose>
+<when condition="@(String.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("clientProgram")) || context.Variables.GetValueOrDefault<string>("clientProgram") == "NotFound")">
+<return-response>
+    <set-status code="404" reason="Not Found" />
+    <set-body>@{
+        var response = new JObject();
+        response.Add("code", 4001);
+        response.Add("message", "Invalid programCode");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</when>
+        </choose>
+<choose>
+<when condition="@((bool)JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.enableOAuth"))">
+<validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. Access token is missing or invalid.">
+    <openid-config url="https://login.microsoftonline.com/${tenant_id}/v2.0/.well-known/openid-configuration" />
+    <required-claims>
+        <claim name="aud">
+            <value>api://${apim_app_display_name}</value>
+        </claim>
+    </required-claims>
+</validate-jwt>
+</when>
+        </choose>
+        </inbound>
+<backend>
+<forward-request />
+</backend>
+<outbound />
+<on-error />
+        </policies>

@@ -1,0 +1,162 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Sets the backend base url -->
+        <set-backend-service base-url="@((string)((JObject)context.Variables["communication"]).SelectToken("acoustic.communicationUrl"))" />
+        <!-- Sets the specific endpoint to hit -->
+        <rewrite-uri template="@((string)((JObject)context.Variables["communication"]).SelectToken("acoustic.communicationUrlSuffix"))" copy-unmatched-params="true" />
+        <!-- Set necessary headers -->
+        <!--<set-header name="Authorization" exists-action="override">
+            <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+        </set-header> -->
+        <set-method>POST</set-method>
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/xml</value>
+        </set-header>
+        <set-variable name="tokenResponse" value="@("")" />
+        <set-variable name="detailsResponse" value="@("")" />
+        <set-variable name="segmentsResponse" value="@("")" />
+        <choose>
+            <when condition="@((string)((JObject)context.Variables["communication"]).SelectToken("backendProfileLookup") == "alpe")">
+            <set-variable name="alpeBaseUrl" value="@((string)((JObject)context.Variables["communication"]).SelectToken("alpe.baseProfileUrl"))" />
+            <set-variable name="tokenUrl" value="@(context.Variables["alpeBaseUrl"] + $"/token-types/{context.Request.MatchedParameters["source"]}/tokens/{context.Request.MatchedParameters["valueOfExternalMemberId"]}/member")" />
+            <send-request mode="new" response-variable-name="tokenResponse" timeout="20" ignore-error="true">
+                <set-url>@((string)context.Variables["tokenUrl"])</set-url>
+                <set-method>GET</set-method>
+                <set-header name="Authorization" exists-action="override">
+                    <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+                </set-header>
+                <set-body />
+            </send-request>
+            <set-variable name="alpeMemberId" value="@(((IResponse)context.Variables["tokenResponse"]).Body.As<JObject>().SelectToken("memberId"))" />
+            <set-variable name="detailsUrl" value="@(context.Variables["alpeBaseUrl"] + $"/members/{context.Variables["alpeMemberId"]}?addresses=true")" />
+            <set-variable name="segmentsUrl" value="@(context.Variables["alpeBaseUrl"] + $"/segments/member/{context.Variables["alpeMemberId"]}")" />
+            <send-request mode="new" response-variable-name="detailsResponse" timeout="20" ignore-error="true">
+                <set-url>@((string)context.Variables["detailsUrl"])</set-url>
+                <set-method>GET</set-method>
+                <set-header name="Authorization" exists-action="override">
+                    <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+                </set-header>
+                <set-body />
+            </send-request>
+            <send-request mode="new" response-variable-name="segmentsResponse" timeout="20" ignore-error="true">
+                <set-url>@((string)context.Variables["segmentsUrl"])</set-url>
+                <set-method>GET</set-method>
+                <set-header name="Authorization" exists-action="override">
+                    <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+                </set-header>
+                <set-body />
+            </send-request>
+            <set-variable name="memberFirstName" value="@("")" />
+            <!-- In member details -->
+            <set-variable name="segments" value="@("")" />
+            <!-- In segments response (codes only) -->
+            <set-variable name="email" value="@("")" />
+            <!-- In member details (when channelType = email) -->
+        </when>
+    </choose>
+    <set-variable name="templateId" value="@("")" />
+    <!-- In request body -->
+    <set-variable name="transactionId" value="@("")" />
+    <!-- In request body (leave null if not existing) -->
+    <set-variable name="partnerName" value="@("")" />
+    <!-- In request body -->
+    <!-- All the personalization (probably do in the main body) -->
+    <set-body>@{
+        var scriptObject = new JObject();
+        scriptObject.Add("memberFirstName", "Lia");
+        scriptObject.Add("PartnerName", "FLYBUYS");
+        scriptObject.Add("PointsRedeemed", "3,000");
+        scriptObject.Add("segments", new JArray());
+        return new XDocument(
+        new XElement("XTMAILING",
+        new XElement("CAMPAIGN_ID", "5840068"),
+        new XElement("TRANSACTION_ID", "1"),
+        new XElement("RECIPIENT",
+        new XElement("EMAIL", "peter.klemme@kognitiv.com"),
+        new XElement("BODY_TYPE", "HTML"),
+        new XElement("PERSONALIZATION",
+        new XElement("TAG_NAME", "subjectTag"),
+        new XElement("VALUE", "Your automatic points redemption")
+        ),
+        new XElement("PERSONALIZATION",
+        new XElement("TAG_NAME", "MemberFirstName"),
+        new XElement("VALUE", "Lia")
+        ),
+        new XElement("PERSONALIZATION",
+        new XElement("TAG_NAME", "PartnerName"),
+        new XElement("VALUE", "FLYBUYS")
+        ),
+        new XElement("PERSONALIZATION",
+        new XElement("TAG_NAME", "PointsRedeemed"),
+        new XElement("VALUE", "3,000")
+        ),
+        new XElement("SCRIPT_CONTEXT", new XCData(scriptObject.ToString()))
+        //new XElement("SCRIPT_CONTEXT", "<![CDATA[{" + scriptObject.ToString() + "]]>")
+        //new XElement("SCRIPT_CONTEXT", @"
+        //            {
+        //            'MemberFirstName': 'Lia',
+        //            'PartnerName': 'FLYBUYS',
+        //            'PointsRedeemed': '3,000',
+        //            'segments': [
+        //            'COMMSUPER']
+        //            }
+        //            ")
+        )
+        )
+        ).ToString();
+        }</set-body>
+    <!--<json-to-xml apply="always" consider-accept-header="true" parse-date="true" />-->
+    <!--<return-response>
+        <set-status code="200" reason="asdf" />
+        <set-body>@(context.Request.Body.As<XDocument>().ToString())</set-body>
+    </return-response>-->
+    <!--<set-variable name="requestBody" value="@(context.Request.Body.As<JObject>(preserveContent: true))" />
+    <set-variable name="templateId" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("templateId"))" />
+    <set-variable name="details" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("details"))" />
+    <choose>
+        <when condition="@(context.Variables["templateId"] == null || context.Variables["templateId"] == "")">
+            <return-response>
+                <set-status code="400" />
+                <set-body>@{
+                        var response = new JObject();
+                        response.Add("code", 4005);
+                        response.Add("message", "Missing required templateId");
+                        return response.ToString();
+                    }</set-body>
+            </return-response>
+        </when>
+        <otherwise>
+            <return-response>
+                <set-status code="200" />
+                <set-body>@{
+                    var response = new JObject();
+                    response.Add("templateId", (string)context.Variables["templateId"]);
+                    return response.ToString();
+                }</set-body>
+            </return-response>
+        </otherwise>
+    </choose> -->
+</inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

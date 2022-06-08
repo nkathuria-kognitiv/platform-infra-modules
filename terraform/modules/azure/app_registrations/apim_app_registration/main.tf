@@ -92,8 +92,6 @@ resource "azuread_application" "apim_app_registration" {
       value = "read"
     }
   }
-
-
 }
 
 

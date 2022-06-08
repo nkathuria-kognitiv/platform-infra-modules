@@ -1,0 +1,224 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <choose>
+            <when condition="@((string)context.Request.MatchedParameters["sourceId"] == "LID")">
+            <choose>
+                <when condition="@((string)context.Request.MatchedParameters["valueOfExternalMemberId"] == "1111")">
+                <return-response>
+                    <set-body>@{
+                        return JObject.FromObject
+                        (
+                        new {
+                        page = "1",
+                        numberOfRecords = "2",
+                        clicks = new object [] {
+                        new {
+                        id = "https =//merchantabc.com?123-abc-432",
+                        date = "2022-01-22",
+                        offer = new {
+                        id = "123",
+                        externalReferenceId = new {
+                        source = "LN",
+                        value = "123"
+                        },
+                        startDate = "2022-02-05T08:15:30-05:00",
+                        endDate = "2023-02-05T08:15:30-05:00",
+                        type = "AffiliatePromotion",
+                        marketingDescription = new object[] {
+                        new {
+                        language = "en",
+                        description = "a good offer...",
+                        images = new object[] {
+                        new {
+                        url = "www.example.com/image.jpg",
+                        alt = "",
+                        type = "thumbnail",
+                        order = 1
+                        }
+                        },
+                        termsAndConditions = new {
+                        language = "en",
+                        description = "This offer..."
+                        }
+                        }
+                        },
+                        baseOfferDetails = new {
+                        rewardType = "FixedValue",
+                        currencyCode = "Points",
+                        rewardTiers = new object[] {
+                        new {
+                        minTierSpendAmount = "1",
+                        value = "10.00"
+                        }
+                        }
+                        },
+                        lastModifiedDate = "2020-02-29T01:30:00.000-05:00"
+                        },
+                        merchant = new {
+                        id = "8490257",
+                        name = "Target"
+                        }
+                        },
+                        new {
+                        id = "https =//merchantabc.com?123-abc-433",
+                        date = "2022-01-23",
+                        offer = new {
+                        id = "124",
+                        externalReferenceId = new {
+                        source = "LN",
+                        value = "124"
+                        },
+                        startDate = "2022-02-05T08:15:30-05:00",
+                        type = "AffiliatePromotion",
+                        marketingDescription = new object[] {
+                        new {
+                        language = "en",
+                        name = "ABC",
+                        description = "free shipping...",
+                        images = new object[] {
+                        new {
+                        url = "www.example.com/image.jpg",
+                        alt = "",
+                        type = "thumbnail",
+                        order = "1"
+                        }
+                        }
+                        }
+                        },
+                        baseOfferDetails = new {
+                        rewardType = "Percentage",
+                        currencyCode = "Points",
+                        rewardTiers = new object[] {
+                        new {
+                        minTierSpendAmount = "0",
+                        value = "13"
+                        }
+                        }
+                        },
+                        lastModifiedDate = "2021-04-22T01:30:00.000-05:00"
+                        },
+                        merchant = new {
+                        id = "8490257",
+                        name = "Target"
+                        }
+                        }
+                        }
+                        }
+                        )
+                        .ToString();
+                        }</set-body>
+                </return-response>
+            </when>
+            <when condition="@((string)context.Request.MatchedParameters["valueOfExternalMemberId"] == "2222")">
+            <return-response>
+                <set-body>@(
+                    JObject.FromObject
+                    (
+                    new {
+                    page = "1",
+                    numberOfRecords = "1",
+                    clicks = new object [] {
+                    new {
+                    id = "https =//merchantabc.com?123-abc-433",
+                    date = "2022-01-23",
+                    offer = new {
+
+                    id = "125",
+                    externalReferenceId = new {
+                    source = "LN",
+                    value = "125"
+                    },
+                    startDate = "2022-02-28T08:15:30-05:00",
+                    type = "Cardlink",
+                    marketingDescription = new object[] {
+                    new {
+                    language = "en",
+                    description = "a good offer...",
+                    images = new object[] {
+                    new {
+                    url = "www.example.com/image.jpg",
+                    alt = "",
+                    type = "thumbnail",
+                    order = 1
+                    }
+                    },
+                    termsAndConditions = new {
+                    language = "en",
+                    description = "This offer...",
+                    }
+                    }
+                    },
+                    baseOfferDetails = new {
+                    rewardType = "FixedValue",
+                    currencyCode = "Points",
+                    rewardTiers = new object[] {
+                    new {
+                    minTierSpendAmount = "1",
+                    value = "15.00"
+                    }
+                    }
+                    },
+                    status = "Active",
+                    lastModifiedDate = "2020-04-15T01:30:00.000-05:00"
+                    },
+                    merchant = new {
+                    id = "Apple",
+                    name = "11111111"
+                    }
+                    }
+                    }
+                    }
+                    )
+                    .ToString()
+                    )</set-body>
+            </return-response>
+        </when>
+        <otherwise>
+            <return-response>
+                <set-status code="404" />
+                <set-body>@{
+                    var response = new JObject();
+
+                    response.Add("message", "Member not found");
+                    return response.ToString();
+                    }</set-body>
+            </return-response>
+        </otherwise>
+    </choose>
+</when>
+<otherwise>
+<return-response>
+    <set-status code="404" />
+    <set-body>@{
+        var response = new JObject();
+
+        response.Add("message", "Source not found");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</otherwise>
+        </choose>
+        </inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

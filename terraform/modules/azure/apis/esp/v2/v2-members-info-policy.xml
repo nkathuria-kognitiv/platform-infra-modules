@@ -1,0 +1,441 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-variable name="fields" value="@{
+            var fieldParam = context.Request.OriginalUrl.Query.GetValueOrDefault("fields", "");
+
+        string[] fields = new string[]{};
+
+        if(!String.IsNullOrEmpty(fieldParam))
+        {
+        fields = Array.ConvertAll(fieldParam?.Split(','), p => p.Trim());
+        }
+
+        return JObject.FromObject(new {
+        profile = fields.Contains("profile", StringComparer.OrdinalIgnoreCase),
+        balance = fields.Contains("balance", StringComparer.OrdinalIgnoreCase),
+        permissions = fields.Contains("permissions", StringComparer.OrdinalIgnoreCase),
+        tiers = fields.Contains("tiers", StringComparer.OrdinalIgnoreCase),
+        segments = fields.Contains("segments", StringComparer.OrdinalIgnoreCase),
+        offers = fields.Contains("offers", StringComparer.OrdinalIgnoreCase),
+        });
+
+        }" />
+        <set-variable name="memberGetUrl" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+
+                    var apiUrlPrefix = (string)program.SelectToken("alpe.apiUrlPrefix");
+                    var alpeMemberId = (string)context.Variables["alpeMemberId"];
+                    return $"{apiUrlPrefix}/members/{alpeMemberId}";
+        }" />
+        <send-request mode="new" response-variable-name="memberInfoResponse" timeout="20" ignore-error="true">
+            <set-url>@((string)context.Variables["memberGetUrl"] + "?restrictions=true&addresses=true&tokens=true")</set-url>
+            <set-method>GET</set-method>
+            <set-header name="Authorization" exists-action="override">
+                <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+            </set-header>
+            <set-body />
+        </send-request>
+        <choose>
+            <when condition="@(((IResponse)context.Variables["memberInfoResponse"]).StatusCode == 200)">
+            <!-- bypass any error response -->
+        </when>
+        <when condition="@(((IResponse)context.Variables["memberInfoResponse"]).StatusCode == 404)">
+        <return-response>
+            <set-status code="404" reason="Not Found" />
+            <set-body>@{
+                var response = new JObject();
+
+                response.Add("code", 911);
+                response.Add("message", "Member Not Found");
+                return response.ToString();
+                }</set-body>
+        </return-response>
+    </when>
+    <otherwise>
+        <return-response>
+            <set-status code="500" reason="System Error" />
+            <set-body>@{
+                var response = new JObject();
+                response.Add("code", 500);
+                response.Add("message", "memberInfoResponse endpoint encountered a problem");
+                return response.ToString();
+                }</set-body>
+        </return-response>
+    </otherwise>
+</choose>
+        <!-- For some reason, the response is consumed when accessed, so have to put it in a JObject because we're accessing it twice. -->
+<set-variable name="memberInfoResponseJsonObject" value="@(((IResponse)context.Variables["memberInfoResponse"]).Body.As<JObject>())" />
+<set-variable name="profile" value="@((bool)((JObject)context.Variables["fields"]).SelectToken("profile"))" />
+<set-variable name="balance" value="@((bool)((JObject)context.Variables["fields"]).SelectToken("balance"))" />
+<set-variable name="permissions" value="@((bool)((JObject)context.Variables["fields"]).SelectToken("permissions"))" />
+<set-variable name="tiers" value="@((bool)((JObject)context.Variables["fields"]).SelectToken("tiers"))" />
+<set-variable name="segments" value="@((bool)((JObject)context.Variables["fields"]).SelectToken("segments"))" />
+<set-variable name="offers" value="@((bool)((JObject)context.Variables["fields"]).SelectToken("offers"))" />
+<choose>
+<when condition="@((bool)context.Variables["balance"])">
+<set-variable name="memberGetBalanceUrl" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+
+                    var balanceBaseUrl = (string)context.Variables["memberGetUrl"];
+                    var currencyCode = (string)program.SelectToken("alpe.pointsCurrency");
+                    return $"{balanceBaseUrl}/balance?currencies={currencyCode}";
+}" />
+<send-request mode="new" response-variable-name="memberBalanceResponse" timeout="20" ignore-error="true">
+    <set-url>@((string)context.Variables["memberGetBalanceUrl"])</set-url>
+    <set-method>GET</set-method>
+    <set-header name="Authorization" exists-action="override">
+        <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+    </set-header>
+    <set-body />
+</send-request>
+<choose>
+    <when condition="@(((IResponse)context.Variables["memberBalanceResponse"]).StatusCode == 200)">
+    <!-- bypass any error response -->
+</when>
+<when condition="@(((IResponse)context.Variables["memberBalanceResponse"]).StatusCode == 404)">
+<return-response>
+    <set-status code="404" reason="Not Found" />
+    <set-body>@{
+        var response = new JObject();
+
+        response.Add("code", 911);
+        response.Add("message", "Member Not Found");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</when>
+<otherwise>
+<return-response>
+    <set-status code="500" reason="System Error" />
+    <set-body>@{
+        var response = new JObject();
+        response.Add("code", 500);
+        response.Add("message", "memberBalanceResponse endpoint encountered a problem");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</otherwise>
+        </choose>
+        </when>
+        </choose>
+<choose>
+<when condition="@((bool)context.Variables["tiers"])">
+<set-variable name="memberGetTiersUrl" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+
+                    var tiersBaseUrl = (string)context.Variables["memberGetUrl"];
+                    var tierChallengeId = (string)program.SelectToken("alpe.tierChallengeId");
+                    return $"{tiersBaseUrl}/challenges?challengeId={tierChallengeId}";
+}" />
+<send-request mode="new" response-variable-name="memberTiersResponse" timeout="60" ignore-error="true">
+    <set-url>@((string)context.Variables["memberGetTiersUrl"])</set-url>
+    <set-method>GET</set-method>
+    <set-header name="Authorization" exists-action="override">
+        <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+    </set-header>
+    <set-body />
+</send-request>
+<choose>
+    <when condition="@(((IResponse)context.Variables["memberTiersResponse"]).StatusCode == 200)">
+    <!-- bypass any error response -->
+</when>
+<when condition="@(((IResponse)context.Variables["memberTiersResponse"]).StatusCode == 404)">
+<return-response>
+    <set-status code="404" reason="Not Found" />
+    <set-body>@{
+        var response = new JObject();
+
+        response.Add("code", 911);
+        response.Add("message", "Member Not Found");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</when>
+<otherwise>
+<return-response>
+    <set-status code="500" reason="System Error" />
+    <set-body>@{
+        var response = new JObject();
+        response.Add("code", 500);
+        response.Add("message", "memberInfoResponse endpoint encountered a problem");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</otherwise>
+        </choose>
+        </when>
+        </choose>
+<choose>
+<when condition="@((bool)context.Variables["segments"])">
+<set-variable name="memberGetSegmentsUrl" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+
+                    var apiUrlPrefix = (string)program.SelectToken("alpe.apiUrlPrefix");
+                    var alpeMemberId = (string)context.Variables["alpeMemberId"];
+                    return $"{apiUrlPrefix}/segments/member/{alpeMemberId}";
+}" />
+<send-request mode="new" response-variable-name="memberSegmentsResponse" timeout="20" ignore-error="true">
+    <set-url>@((string)context.Variables["memberGetSegmentsUrl"])</set-url>
+    <set-method>GET</set-method>
+    <set-header name="Authorization" exists-action="override">
+        <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
+    </set-header>
+    <set-body />
+</send-request>
+<choose>
+    <when condition="@(((IResponse)context.Variables["memberSegmentsResponse"]).StatusCode == 200)">
+    <!-- bypass any error response -->
+</when>
+<when condition="@(((IResponse)context.Variables["memberSegmentsResponse"]).StatusCode == 404)">
+<return-response>
+    <set-status code="404" reason="Not Found" />
+    <set-body>@{
+        var response = new JObject();
+
+        response.Add("code", 911);
+        response.Add("message", "Member Not Found");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</when>
+<otherwise>
+<return-response>
+    <set-status code="500" reason="System Error" />
+    <set-body>@{
+        var response = new JObject();
+        response.Add("code", 500);
+        response.Add("message", "memberInfoResponse endpoint encountered a problem");
+        return response.ToString();
+        }</set-body>
+</return-response>
+</otherwise>
+        </choose>
+        </when>
+        </choose>
+<choose>
+<when condition="@((bool)context.Variables["offers"])">
+<set-variable name="alpeMemberToken" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+                    var alpeResponse = (JObject)context.Variables["memberInfoResponseJsonObject"];
+                    var tokens = (JArray)alpeResponse.SelectToken("tokens");
+                    var tokenType = (string)program.SelectToken("alpe.tokenType");
+                    foreach (var token in tokens) {
+                        if ((string)token.SelectToken("tokenType") == tokenType) {
+                            return token.SelectToken("token").ToString();
+                        }
+                    }
+                    return "";
+}" />
+<set-variable name="memberGetOffersUrl" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+
+                    var apiUrlPrefix = (string)program.SelectToken("kls.wsUrlPrefix");
+                    return $"{apiUrlPrefix}/Offer.asmx/MemberActiveRewardsForEspMee";
+}" />
+<set-variable name="requestBody" value="@{
+                    var program = JObject.Parse((string)context.Variables["clientProgram"]);
+                    var wsToken = (string)program.SelectToken("kls.wsToken");
+                    var memberId = (string)context.Variables["alpeMemberToken"];
+                    JObject requestBody = JObject.FromObject(new {
+                        WSSecurityToken = wsToken,
+                        MemberAccountId = memberId,
+                        SBInternalMemberId = -1
+                    });
+                    return requestBody.ToString();
+                }" />
+<send-request mode="new" response-variable-name="memberOffersResponse" timeout="60" ignore-error="true">
+    <set-url>@((string)context.Variables["memberGetOffersUrl"])</set-url>
+    <set-method>POST</set-method>
+    <set-header name="Content-Type" exists-action="override">
+        <value>application/json</value>
+    </set-header>
+    <set-body>@{
+        var baseRequestBody = (string)context.Variables["requestBody"];
+        var requestBody = JObject.Parse(baseRequestBody);
+        //requestBody.Add("LocationExternalReference", "-1");
+        return requestBody.ToString();
+        }</set-body>
+</send-request>
+</when>
+        </choose>
+<return-response>
+<set-body>@{
+    var alpeResponse = (JObject)context.Variables["memberInfoResponseJsonObject"];
+    var memberInfoResponse = new JObject();
+    memberInfoResponse.Add(new JProperty("id", context.Request.MatchedParameters["memberId"]));
+    var activeStatus = (string)alpeResponse.SelectToken("status.code") == "ACTIVE";
+    memberInfoResponse.Add(new JProperty("active", activeStatus));
+
+    if ((bool)context.Variables["profile"]) {
+    var profileJsonObject = new JObject();
+    profileJsonObject.Add("salutation", (string)alpeResponse.SelectToken("salutation"));
+    var firstName = (string)alpeResponse.SelectToken("firstName");
+    profileJsonObject.Add("firstName", firstName);
+    profileJsonObject.Add("lastName", (string)alpeResponse.SelectToken("lastName"));
+    profileJsonObject.Add("gender", (string)alpeResponse.SelectToken("gender"));
+
+    var birthdayString = (string)alpeResponse.SelectToken("dateOfBirth");
+    if (String.IsNullOrEmpty(birthdayString)) {
+    var birthdayJsonObject = new JObject();
+    birthdayJsonObject.Add("year", 0);
+    birthdayJsonObject.Add("month", 0);
+    birthdayJsonObject.Add("day", 0);
+    profileJsonObject.Add("birthday", birthdayJsonObject);
+    } else {
+    var birthdayJsonObject = new JObject();
+    var birthdayTokenList = (List<string>)birthdayString.Split('-').ToList();
+    birthdayJsonObject.Add("year", int.Parse(birthdayTokenList[0]));
+    birthdayJsonObject.Add("month", int.Parse(birthdayTokenList[1]));
+    birthdayJsonObject.Add("day", int.Parse(birthdayTokenList[2]));
+    profileJsonObject.Add("birthday", birthdayJsonObject);
+    }
+
+    var alpeAddressesObject = (JArray)alpeResponse.SelectToken("addresses");
+    JObject emailJObject = null;
+    JObject addressJObject = null;
+    foreach (JObject address in alpeAddressesObject) {
+    if ((string)address.SelectToken("channel.name") == "EMAIL") {
+    emailJObject = address;
+    } else if ((string)address.SelectToken("channel.name") == "HOMEADDRESS") {
+    addressJObject = address;
+    }
+    }
+    // Want to have all empty fields in case of no email, so have to create conditional.
+    var emailJsonObject = new JObject();
+    if (emailJObject == null) {
+    emailJsonObject.Add("address", "");
+    } else {
+    emailJsonObject.Add("address", emailJObject.SelectToken("value.value"));
+    }
+    profileJsonObject.Add("email", emailJsonObject);
+
+    // Same with address
+    var addressJsonObject = new JObject();
+    if (addressJObject == null) {
+    addressJsonObject.Add("addressLine1", "");
+    addressJsonObject.Add("addressLine2", "");
+    addressJsonObject.Add("careOf", "");
+    addressJsonObject.Add("city", "");
+    addressJsonObject.Add("state", "");
+    addressJsonObject.Add("postalCode", "");
+    addressJsonObject.Add("country", "");
+    } else {
+    addressJsonObject.Add("addressLine1", addressJObject.SelectToken("value.Address_Line1") == null ? "" : addressJObject.SelectToken("value.Address_Line1"));
+    addressJsonObject.Add("addressLine2", addressJObject.SelectToken("value.Address_Line2") == null ? "" : addressJObject.SelectToken("value.Address_Line2"));
+    //No ALP-E equvilent to careOf, so set it to empty string.
+    addressJsonObject.Add("careOf", "");
+    addressJsonObject.Add("city", addressJObject.SelectToken("value.City") == null ? "" : addressJObject.SelectToken("value.City"));
+    addressJsonObject.Add("state", addressJObject.SelectToken("value.State") == null ? "" : addressJObject.SelectToken("value.State"));
+    addressJsonObject.Add("postalCode", addressJObject.SelectToken("value.Post_Code") == null ? "" : addressJObject.SelectToken("value.Post_Code"));
+    addressJsonObject.Add("country", addressJObject.SelectToken("value.Country") == null ? "" : addressJObject.SelectToken("value.Country"));
+    }
+    profileJsonObject.Add("address", addressJsonObject);
+    var languageCode = (string)alpeResponse.SelectToken("language");
+    if (languageCode != null && (languageCode.Length == 2 || languageCode.Length == 5)) {
+    profileJsonObject.Add("language", languageCode.Replace('_', '-'));
+    } else {
+    profileJsonObject.Add("language", null);
+    }
+
+    memberInfoResponse.Add("profile", profileJsonObject);
+    }
+    if ((bool)context.Variables["balance"]) {
+    var balanceResponse = ((IResponse)context.Variables["memberBalanceResponse"]).Body.As<JObject>();
+    var balanceJsonObject = new JObject();
+    balanceJsonObject.Add("amount", balanceResponse.SelectToken("balances").First().SelectToken("amount"));
+    memberInfoResponse.Add("balance", balanceJsonObject);
+    }
+    if ((bool)context.Variables["permissions"]) {
+    var alpePermissions = alpeResponse.SelectToken("permissions.permissions");
+    var klsPermissionsList = new JArray();
+    if ((bool)alpePermissions.SelectToken("EARN")) {
+    klsPermissionsList.Add("earn");
+    }
+    if ((bool)alpePermissions.SelectToken("REDEEM")) {
+    klsPermissionsList.Add("burn");
+    }
+    memberInfoResponse.Add("permissions", klsPermissionsList);
+    }
+    if ((bool)context.Variables["tiers"]) {
+    var tiersResponse = ((IResponse)context.Variables["memberTiersResponse"]).Body.As<JObject>();
+
+    var tiersJsonObject = new JObject();
+    var challenges = tiersResponse.SelectToken("challenges");
+    foreach (JObject challenge in challenges) {
+    // tierName refers to the name of the challenge itself, and currentAchievment refers to
+    // the specifc tier achieved within the challenge
+    string tierName = (string)challenge.SelectToken("name");
+    string currentAchievementCode = (string)challenge.SelectToken("currentAchievement");
+    string currentAchievmentName = null;
+    if (!String.IsNullOrEmpty(currentAchievementCode)) {
+    foreach (var achievement in (JArray)challenge.SelectToken("achievements")) {
+    if (currentAchievementCode == (string)achievement.SelectToken("code")) {
+    currentAchievmentName = (string)achievement.SelectToken("name");
+    }
+    }
+    }
+    tiersJsonObject.Add(tierName, currentAchievmentName);
+    }
+
+    memberInfoResponse.Add("tiers", tiersJsonObject);
+    }
+    if ((bool)context.Variables["segments"]) {
+    var segmentsResponse = ((IResponse)context.Variables["memberSegmentsResponse"]).Body.As<JArray>();
+    var segmentCodeList = new JArray();
+    foreach (JObject segment in segmentsResponse) {
+    segmentCodeList.Add((string)segment.SelectToken("segmentCode"));
+    }
+    memberInfoResponse.Add("segments", segmentCodeList);
+    }
+    if ((bool)context.Variables["offers"]) {
+
+    var offersList = new JArray();
+    try {
+    var memberActiveRewardsJson = JObject.Parse(((IResponse)context.Variables["memberOffersResponse"]).Body.As<string>())["d"];
+
+    if ((int)memberActiveRewardsJson.SelectToken("ReturnCode") == 0) {
+    var activeRewards = memberActiveRewardsJson["MemberActiveRewards"];
+    foreach (JObject memberReward in activeRewards) {
+    var rewardTypeReference = memberReward.Value<string>("RewardTypeExternalReference");
+    if (!string.IsNullOrEmpty(rewardTypeReference)) {
+    offersList.Add(JObject.FromObject(new {
+    id = $"issued-{memberReward.Value<int>("MemberRewardId")}",
+    reference = rewardTypeReference
+    }));
+    }
+    }
+    }
+    } catch (Exception e) {
+    //If exception is thrown, an error happened in KLS, so return null.
+    offersList = null;
+    }
+    memberInfoResponse.Add("offers", offersList);
+    }
+
+    return memberInfoResponse.ToString();
+    }</set-body>
+</return-response>
+        </inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

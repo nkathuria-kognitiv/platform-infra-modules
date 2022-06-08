@@ -26,3 +26,6 @@ variable "api_key_name" {
 }
 
 variable "resource_group_name" {}
+
+variable "tenant_id" {}
+variable "apim_app_display_name" {}

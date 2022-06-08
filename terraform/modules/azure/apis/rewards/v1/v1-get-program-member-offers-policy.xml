@@ -1,0 +1,125 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-method>GET</set-method>
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+        </set-header>
+        <set-query-parameter name="merchantId" exists-action="append">
+            <value>@(context.Request.MatchedParameters["merchantId"])</value>
+        </set-query-parameter>
+        <!-- <set-query-parameter name="language" exists-action="override">
+            <value>@(context.Request.Url.Query.GetValueOrDefault("language", "EN"))</value>
+        </set-query-parameter> -->
+        <set-query-parameter name="language" exists-action="override">
+            <value>@(context.Request.Url.Query.GetValueOrDefault("language"))</value>
+        </set-query-parameter>
+        <rewrite-uri template="/{programCode}/offers" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <set-body>@{
+            var returnResponse = new JObject();
+            var merchantOffer = new JArray();
+            var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
+            var defaultValuesforGetAllActiveOffers = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getAllActiveOffers"].Value<JObject>();
+            var offers = (JArray)payLoad.SelectToken("results");
+            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
+            returnResponse.Add("numberOfRecords", (int)payLoad.SelectToken("pageSize"));
+            returnResponse.Add("totalRecords", (int)payLoad.SelectToken("total"));
+            foreach(JObject offer in offers) {
+            var offerResponse = new JObject();
+            var offerObj = new JObject();
+            offerObj.Add("id", (int)offer.SelectToken("id"));
+            var externalId = new JObject();
+            externalId.Add("source", (string)defaultValuesforGetAllActiveOffers.SelectToken("externalReferenceSource"));
+            externalId.Add("value", (int)offer.SelectToken("id"));
+            offerObj.Add("externalReferenceId", externalId);
+            offerObj.Add("startDate", offer.SelectToken("created"));
+            offerObj.Add("endDate", offer.SelectToken("modified"));
+            offerObj.Add("type", (string)defaultValuesforGetAllActiveOffers.SelectToken("type"));
+            var offerDetails = (JArray)offer.SelectToken("offerDetailsDTOs");
+            var marketingDescription = new JArray();
+            var termsAndConditions = new JArray();
+            if (offerDetails != null) {
+            foreach (JObject offerDetail in offerDetails) {
+            var marketingObj = new JObject();
+            var lang = (String)offerDetail.SelectToken("language");
+            marketingObj.Add("language", lang);
+
+            var description = (JObject)offerDetail.SelectToken("description");
+            var strDesc = "";
+            if (description != null) {
+            if ((bool)description.SelectToken("htmlEnabled")) {
+            marketingObj.Add("description",description.SelectToken("valueHTML") );
+            } else {
+            marketingObj.Add("description",description.SelectToken("value") );
+            }
+            }
+
+            marketingDescription.Add(marketingObj);
+
+            var termAndCondition = (JObject)offerDetail.SelectToken("termsAndConditions");
+            var termAndConditionObj = new JObject();
+            if (termAndCondition != null) {
+            termAndConditionObj.Add("language", lang);
+            if ((bool)description.SelectToken("htmlEnabled")) {
+            termAndConditionObj.Add("description",termAndCondition.SelectToken("valueHTML") );
+            } else {
+            termAndConditionObj.Add("description",termAndCondition.SelectToken("value") );
+            }
+            }
+
+            termsAndConditions.Add(termAndConditionObj);
+            }
+            }
+            offerObj.Add("marketingDescription", marketingDescription);
+            offerObj.Add("termsAndConditions", termsAndConditions);
+            var baseOfferDetails = new JObject();
+            baseOfferDetails.Add("rewardType", (String)offer.SelectToken("rewardType"));
+            baseOfferDetails.Add("currencyCode", (String)offer.SelectToken("rewardCurrency"));
+
+            var rewardTiers = new JArray();
+            var rewardTierObj = new JObject();
+            rewardTierObj.Add("value", (double)offer.SelectToken("rewardAmount"));
+            rewardTiers.Add(rewardTierObj);
+            baseOfferDetails.Add("rewardTiers", rewardTiers);
+
+            offerObj.Add("baseOfferDetails", baseOfferDetails );
+            offerObj.Add("status",(String)offer.SelectToken("offerStatus"));
+            offerObj.Add("lastModifiedDate", offer.SelectToken("modified"));
+            var merchantObj = new JObject();
+            var merchantDTO = (JObject)offer.SelectToken("merchantDTO");
+            var externalMerchantId = new JObject();
+            externalMerchantId.Add("source",(string)defaultValuesforGetAllActiveOffers.SelectToken("externalReferenceId"));
+            if (merchantDTO != null) {
+            externalMerchantId.Add("value", (int)merchantDTO.SelectToken("id"));
+            }
+            merchantObj.Add("externalMerchantId", externalMerchantId);
+            offerResponse.Add("externalMerchantId", externalMerchantId);
+            offerResponse.Add("offer", offerObj);
+            merchantOffer.Add(offerResponse);
+            }
+            returnResponse.Add("merchantOffers", merchantOffer);
+            return returnResponse.ToString();
+            }</set-body>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

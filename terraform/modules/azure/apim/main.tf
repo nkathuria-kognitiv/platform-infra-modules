@@ -68,3 +68,7 @@ resource "azurerm_api_management_named_value" "api_key"{
   }
 }
 
+resource "azurerm_api_management_policy" "apim_all_apis_policy" {
+  xml_content = templatefile("apim_all_apis_policy.xml", {"tenant_id"="${var.tenant_id}", "apim_app_display_name"= "${var.apim_app_display_name}"})
+  api_management_id = azurerm_api_management.apim.id
+}

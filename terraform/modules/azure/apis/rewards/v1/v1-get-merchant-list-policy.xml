@@ -1,0 +1,103 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-method>GET</set-method>
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+        </set-header>
+        <rewrite-uri template="/{programCode}/merchants" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <set-body>@{
+            var returnResponse = new JObject();
+            var merchantList = new JArray();
+            var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
+            var defaultValuesforGetAllMerchants = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getMerchantList"].Value<JObject>();
+            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
+            returnResponse.Add("numberOfRecords", (int)payLoad.SelectToken("pageSize"));
+            returnResponse.Add("totalRecords", (int)payLoad.SelectToken("total"));
+            var merchants = (JArray)payLoad.SelectToken("results");
+            foreach(JObject merchant in merchants) {
+            var merchantObj = new JObject();
+
+            var merchantDetails = (JArray)merchant.SelectToken("merchantDetailsDTOs");
+            var merchantId = (String)merchant.SelectToken("id");
+            merchantObj.Add("id", merchantId);
+            var mDetails = new JArray();
+            foreach(JObject mDetail in merchantDetails) {
+            var merchantDetail = new JObject();
+            merchantDetail.Add("name",(String)mDetail.SelectToken("name") );
+            merchantDetail.Add("language",(String)mDetail.SelectToken("language") );
+            var descriptionObj = (JObject)mDetail.SelectToken("description");
+            if ((bool)descriptionObj.SelectToken("htmlEnabled")) {
+            merchantDetail.Add("description",descriptionObj.SelectToken("valueHTML") );
+            } else {
+            merchantDetail.Add("description",descriptionObj.SelectToken("value") );
+            }
+
+            var merchantDigitalAssets = (JArray)mDetail.SelectToken("merchantDigitalAssetDTOs");
+            var images = new JArray();
+            if (merchantDigitalAssets != null) {
+
+            foreach(JObject merchantDigitalAsset in merchantDigitalAssets) {
+            var image = new JObject();
+            image.Add("url", (String)merchantDigitalAsset.SelectToken("url"));
+            image.Add("type", (String)merchantDigitalAsset.SelectToken("categoryType"));
+            image.Add("altText", (String)merchantDigitalAsset.SelectToken("altText"));
+            image.Add("displayOrder", merchantDigitalAsset.SelectToken("displayOrder"));
+            images.Add(image);
+
+            }
+
+            }
+            merchantDetail.Add("images",images);
+
+            mDetails.Add(merchantDetail);
+
+            }
+            merchantObj.Add("localNames",mDetails);
+            var externalId = new JObject();
+            externalId.Add("source",(string)defaultValuesforGetAllMerchants.SelectToken("externalReferenceSource"));
+            externalId.Add("value",merchantId);
+            merchantObj.Add("externalReferenceId", externalId);// No data from backend side
+            merchantObj.Add("type", (string)defaultValuesforGetAllMerchants.SelectToken("type")); // No data from backend side
+            merchantObj.Add("typeStatus", (String)merchant.SelectToken("merchantStatus") );
+            merchantObj.Add("webAddress", (string)defaultValuesforGetAllMerchants.SelectToken("webAddress")); // No data from backend side
+            merchantObj.Add("addresses", new JArray()); // No data from backend side
+            merchantObj.Add("socialMediaAccounts", new JArray()); // No data from backend side
+            var categories = (JArray)merchant.SelectToken("categoryDTOs");
+            if (categories != null) {
+            merchantObj.Add("categories", categories);
+            }
+            merchantObj.Add("lastModifiedDate", merchant.SelectToken("modified"));
+
+            merchantList.Add(merchantObj);
+
+            }
+
+
+            returnResponse.Add("merchants", merchantList);
+            return returnResponse.ToString();
+
+            }</set-body>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
