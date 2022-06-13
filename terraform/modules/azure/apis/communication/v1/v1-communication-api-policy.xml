@@ -1,0 +1,68 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-variable name="communication" value="@(JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("communication").Value<JObject>())" />
+        <choose>
+            <when condition="@((string)((JObject)context.Variables["communication"]).SelectToken("backendProfileLookup") == "alpe")">
+            <cache-lookup-value key="@($"AUTH-{(string)context.Variables["programCode"]}")" variable-name="accessToken" />
+            <choose>
+                <when condition="@(!context.Variables.ContainsKey("accessToken"))">
+                <set-variable name="authUrl" value="@{
+                            var program = ((JObject)context.Variables["communication"]).SelectToken("alpe");
+                            var urlPrefix = (string)program.SelectToken("profileApiSecurity.apiSecurityUrl");
+                            var urlSuffix = (string)program.SelectToken("profileApiSecurity.apiSecurityUrlSuffix");
+                            return $"{urlPrefix}/{urlSuffix}";
+                }" />
+                <send-request mode="new" response-variable-name="authResponse" timeout="10" ignore-error="true">
+                    <set-url>@((string)context.Variables["authUrl"])</set-url>
+                    <set-method>GET</set-method>
+                    <set-header name="Authorization" exists-action="override">
+                        <value>@{
+                            var program = ((JObject)context.Variables["communication"]).SelectToken("alpe");
+                            var userId = (string)program.SelectToken("profileApiSecurity.apiTokenUsername");
+                            var userPwd = (string)program.SelectToken("profileApiSecurity.apiTokenPassword");
+                            var authHeader = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{userId}:{userPwd}"));
+                            return string.Format("Basic {0}", authHeader);
+                            }</value>
+                    </set-header>
+                </send-request>
+                <set-variable name="accessToken" value="@(((IResponse)context.Variables["authResponse"]).Body.As<JObject>()["access_token"].ToString())" />
+                <cache-store-value key="@($"AUTH-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["accessToken"])" duration="3000" />
+            </when>
+        </choose>
+    </when>
+    <otherwise>
+        <return-response>
+            <set-status code="500" />
+            <set-body>@{
+                var response = new JObject();
+                response.Add("code", 5001);
+                response.Add("message", "Program does not have valid backendLoyalty configuration");
+                return response.ToString();
+                }</set-body>
+        </return-response>
+    </otherwise>
+</choose>
+        </inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

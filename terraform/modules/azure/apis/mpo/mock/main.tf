@@ -20,14 +20,14 @@ variable "resource_group_name" {
 data "azurerm_api_management_api_version_set" versionset{
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
-  name = "esp"
+  name = "mpo"
 }
 
 resource "azurerm_api_management_api" "api" {
   api_management_name = "${var.apim_name}"
-  display_name = "ESP"
-  name = "esp-mock"
-  path = "esp"
+  display_name = "MPO"
+  name = "mpo-mock"
+  path = "mpo"
   protocols = ["https"]
   resource_group_name = "${var.resource_group_name}"
   revision = "mock"
@@ -72,4 +72,11 @@ resource "azurerm_api_management_api_operation_policy" "mock_deposit_policy" {
   operation_id = azurerm_api_management_api_operation.deposit.operation_id
   xml_content = file("mock-deposit-policy.xml")
 
+}
+
+resource "azurerm_api_management_api_policy" "v1_api_policy" {
+  api_management_name = "${var.apim_name}"
+  api_name            = azurerm_api_management_api.api.name
+  resource_group_name = "${var.resource_group_name}"
+  xml_content = file("mpo-mock-api-policy.xml")
 }

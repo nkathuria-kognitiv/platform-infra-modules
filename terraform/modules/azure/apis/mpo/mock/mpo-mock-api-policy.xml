@@ -1,0 +1,96 @@
+<!--
+    IMPORTANT:
+    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.
+    - To remove a policy, delete the corresponding policy statement from the policy document.
+    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.
+    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.
+    - Policies are applied in the order of their appearance, from the top down.
+    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.
+-->
+<policies>
+    <inbound>
+        <base />
+        <return-response>
+            <set-status code="201" reason="created" />
+            <set-body>@{
+                var body = context.Request.Body.As<JObject>(true);
+
+                string cleanUp = body.ToString().Replace("\r\n","");
+                var root =  JObject.Parse(cleanUp);
+
+                var errors = new JArray();
+                Double amount = 0.0;
+                if(root["amount"] == null)
+                {
+                var error = new JObject();
+                error["code"] = "400";
+                error["message"] = "'amount' property cannot be null";
+                errors.Add(error);
+
+                }
+                else if(!Double.TryParse(root["amount"].ToString(), out amount))
+                {
+                var error = new JObject();
+                error["code"] = "400";
+                error["message"] = "'amount' property is not in the correct format";
+                errors.Add(error);
+                }
+                else if(((int)amount) == 111111)
+                {
+                var error = new JObject();
+                error["code"] = "1201";
+                error["message"] = "Deposit not allowed: Member is not allowed to make a deposit of Loyalty Points";
+                errors.Add(error);
+                }
+                else if(((int)amount) == 111112)
+                {
+                var error = new JObject();
+                error["code"] = "1202";
+                error["message"] = "Deposit amount not allowed. This is likely because the amount has exceeded a threshold for this member, or because it went above or below a configured range";
+                errors.Add(error);
+                }
+
+                if(root["orderReference"] == null || String.IsNullOrEmpty(root["orderReference"].ToString()))
+                {
+                var error = new JObject();
+                error["code"] = "400";
+                error["message"] = "'orderReference' property cannot be null or empty";
+                errors.Add(error);
+
+                }
+
+                if(errors.Count > 0)
+                {
+                throw new Exception(errors.ToString());
+                }
+
+                var result = new JObject();
+                result["depositId"] = "111111";
+                return result.ToString();
+                }</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <choose>
+            <when condition="@(context.LastError.Message.Contains("Expression evaluation failed")==true)">
+            <set-status code="400" reason="Bad request" />
+        </when>
+        <otherwise>
+            <set-status code="500" reason="Error" />
+        </otherwise>
+    </choose>
+    <set-body template="none">@{
+        return context.LastError.Message.Replace("Expression evaluation failed.","").Trim();
+        }</set-body>
+    <base />
+</on-error>
+        </policies>

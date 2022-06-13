@@ -19,9 +19,7 @@ variable "resource_group_name" {
 resource "azurerm_api_management_api_version_set" "api" {
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
-  display_name = "ESP"
+  display_name = "MPO"
   versioning_scheme = "Segment"
-  name = "esp"
+  name = "mpo"
 }
-
-

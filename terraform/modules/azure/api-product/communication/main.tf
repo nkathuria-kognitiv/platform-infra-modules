@@ -15,7 +15,6 @@ variable "resource_group_name" {
 }
 variable "apim_name" {
 }
-variable "communication_product_id" {}
 
 output "product_id" {
   value = module.product_mee.product_id

@@ -82,5 +82,10 @@ resource "azurerm_api_management_api_operation_policy" "operation" {
   xml_content = file("v1-member-policy.xml")
 
 }
-
+resource "azurerm_api_management_api_policy" "api_policy" {
+  api_name            = azurerm_api_management
+  api_management_name = azurerm_api_management.apim.name
+  resource_group_name = "${var.resource_group_name}"
+  xml_content = file("v1-loyalty-api-policy.xml")
+}
 

@@ -51,7 +51,7 @@ resource "azurerm_api_management_product_api" "api" {
   resource_group_name = "${var.resource_group_name}"
 }
 
-resource "azurerm_api_management_api_operation" "operation" {
+resource "azurerm_api_management_api_operation" "member-email-lookup-member-info" {
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
   api_name = azurerm_api_management_api.api.name
@@ -77,11 +77,19 @@ resource "azurerm_api_management_api_operation" "operation" {
   }
 }
 
-resource "azurerm_api_management_api_operation_policy" "operation_policy" {
+resource "azurerm_api_management_api_policy" "api_policy" {
+  api_name            = azurerm_api_management_api.api.name
+  api_management_name = "${var.apim_name}"
+  resource_group_name = "${var.resource_group_name}"
+  xml_content = file("v1-communication-api-policy.xml")
+}
+
+resource "azurerm_api_management_api_operation_policy" "member-email-lookup-member-info" {
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
   api_name = azurerm_api_management_api.api.name
-  operation_id = azurerm_api_management_api_operation.operation.operation_id
-  xml_content = file("v1-communication-policy.xml")
-
+  operation_id = azurerm_api_management_api_operation.member-email-lookup-member-info.operation_id
+  xml_content = file("v1-member-email-lookup-member-info-policy.xml")
 }
+
+

@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=2.99.0"
+      version = "=3.10.0"
     }
   }
   backend "azurerm" {}
@@ -19,6 +19,11 @@ data azurerm_resource_group "rsg"{
 
 data "azurerm_client_config" "current" {}
 
+data "azurerm_key_vault" "keyvault" {
+  name = "${var.keyvaultname}"
+  resource_group_name = data.azurerm_resource_group.rsg.name
+}
+
 resource "azurerm_api_management" "apim" {
   location            = data.azurerm_resource_group.rsg.location
   name                = var.apim_name
@@ -29,6 +34,23 @@ resource "azurerm_api_management" "apim" {
   identity {
     type = "SystemAssigned"
   }
+  /*hostname_configuration{
+    gateway{
+      host_name = "api-qa.internal-kognitiv.com"
+      key_vault_id  =  "https://${var.keyvaultname}.vault.azure.net/secrets/${var.certificate_name}"
+    }
+  }*/
+}
+
+resource "azurerm_api_management_custom_domain" "apim" {
+  api_management_id = azurerm_api_management.apim.id
+
+  gateway{
+    host_name = "api-qa.internal-kognitiv.com"
+    key_vault_id  =  "https://${var.keyvaultname}.vault.azure.net/secrets/${var.certificate_name}"
+  }
+
+
 }
 
 resource "azurerm_api_management_named_value" "containername" {
@@ -70,10 +92,7 @@ resource "azurerm_api_management_named_value" "keyvaultname" {
   }
 }*/
 
-data "azurerm_key_vault" "keyvault" {
-  name = "${var.keyvaultname}"
-  resource_group_name = data.azurerm_resource_group.rsg.name
-}
+
 
 resource "azurerm_key_vault_access_policy" "keyvault_apim_policy" {
   key_vault_id = data.azurerm_key_vault.keyvault.id
@@ -81,12 +100,12 @@ resource "azurerm_key_vault_access_policy" "keyvault_apim_policy" {
   object_id = azurerm_api_management.apim.identity.0.principal_id
 
   secret_permissions = [
-    "get"
+    "Get"
   ]
 
   certificate_permissions = [
-    "get",
-    "list"
+    "Get",
+    "List"
   ]
 }
 
@@ -96,14 +115,22 @@ output "system_managed_identity" {
 
 data azurerm_storage_account "storageaccount"{
   resource_group_name = "${var.resource_group_name}"
-  name = "ccpterraformbackend"
+  name = "${var.storageaccountname}"
 }
 
 resource "azurerm_role_assignment" "apim_storageaccount_access" {
   scope = data.azurerm_storage_account.storageaccount.id
   principal_id = azurerm_api_management.apim.identity.0.principal_id
-  role_definition_name = "Storage Account Contributor"
+  role_definition_name = "Storage Blob Data Contributor"
 }
+
+resource "azurerm_role_assignment" "apim_keyvault_access" {
+  scope = data.azurerm_key_vault.keyvault.id
+  principal_id = azurerm_api_management.apim.identity.0.principal_id
+  role_definition_name = "Key Vault Reader"
+}
+
+
 
 #Health Probe API
 resource "azurerm_api_management_api" "apiHealthProbe" {

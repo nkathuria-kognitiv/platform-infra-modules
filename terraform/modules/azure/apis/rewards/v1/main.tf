@@ -327,3 +327,10 @@ resource "azurerm_api_management_api_operation_policy" "create-post-member-click
   operation_id = azurerm_api_management_api_operation.create-post-member-click.operation_id
   xml_content = file("v1-create-post-member-click-policy.xml")
 }
+
+resource "azurerm_api_management_api_policy" "api_policy" {
+  api_management_name = "${var.apim_name}"
+  api_name = azurerm_api_management_api.api.name
+  resource_group_name = "${var.resource_group_name}"
+  xml_content = file("rewards-v1-api-policy.xml")
+}

@@ -19,14 +19,14 @@ variable "resource_group_name" {
 data "azurerm_api_management_api_version_set" versionset{
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
-  name = "esp"
+  name = "mpo"
 }
 
 resource "azurerm_api_management_api" "api" {
   api_management_name = "${var.apim_name}"
-  display_name = "ESP"
-  name = "esp-v2"
-  path = "esp"
+  display_name = "MPO"
+  name = "mpo-v2"
+  path = "mpo"
   protocols = ["https"]
   resource_group_name = "${var.resource_group_name}"
   revision = "v2"
@@ -96,3 +96,12 @@ resource "azurerm_api_management_api_operation_policy" "members_policy" {
   operation_id = azurerm_api_management_api_operation.members.operation_id
   xml_content = file("v2-members-info-policy.xml")
 }
+
+resource "azurerm_api_management_api_policy" "api_policy" {
+  api_management_name = "${var.apim_name}"
+  api_name = azurerm_api_management_api.api.name
+  resource_group_name = "${var.resource_group_name}"
+  xml_content = file("mpo-v2-api-policy.xml")
+}
+
+
