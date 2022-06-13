@@ -19,10 +19,17 @@ provider "azurerm" {
   features {}
 }
 
+data "azuread_client_config" "current" {}
+
+output "pmp_secret" {
+  value = azuread_application_password.pmp_secret.value
+  sensitive = true
+}
 
 resource "azuread_application" "apim_app_registration" {
 
   display_name = "${var.apim_app_display_name}"
+  owners       = [data.azuread_client_config.current.object_id]
   identifier_uris  = ["api://${var.apim_app_display_name}"]
 
   app_role {
@@ -94,11 +101,17 @@ resource "azuread_application" "apim_app_registration" {
   }
 }
 
+resource "azuread_service_principal" "apim_app_registration" {
+  application_id               = azuread_application.apim_app_registration.application_id
+  app_role_assignment_required = false
+  owners                       = [data.azuread_client_config.current.object_id]
+}
 
 
 resource "azuread_application" "pmp_app_registration" {
-
+  depends_on = ["azuread_application.apim_app_registration"]
   display_name = "${var.pmp_app_display_name}"
+  owners       = [data.azuread_client_config.current.object_id]
   required_resource_access {
     resource_app_id = azuread_application.apim_app_registration.application_id
     resource_access {
@@ -124,9 +137,13 @@ resource "azuread_application" "pmp_app_registration" {
   }
 }
 
+resource "azuread_service_principal" "pmp_app_registration" {
+  application_id               = azuread_application.pmp_app_registration.application_id
+  app_role_assignment_required = false
+  owners                       = [data.azuread_client_config.current.object_id]
+}
+
 
 resource "azuread_application_password" "pmp_secret" {
   application_object_id = azuread_application.pmp_app_registration.object_id
 }
-
-
