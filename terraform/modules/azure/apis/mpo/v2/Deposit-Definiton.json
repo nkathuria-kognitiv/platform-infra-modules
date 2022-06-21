@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "amount": {
+      "type": "number"
+    },
+    "orderReference": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "amount",
+    "orderReference"
+  ]
+}

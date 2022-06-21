@@ -24,28 +24,27 @@
     <cache-lookup-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" variable-name="clientProgram" />
     <choose>
         <!-- If a cache miss call blob storage to get the data from container -->
-        <!--<when condition="@(!context.Variables.ContainsKey("clientProgram"))"> -->
-        <when condition="@(true)">
-            <send-request mode="new" timeout="20" response-variable-name="blobResponse" ignore-error="false">
-                <set-url>@($"https://{{storageaccountname}}.blob.core.windows.net/{{containername}}/{context.Variables.GetValueOrDefault<string>("programCode")}.json")</set-url>
-                <set-method>GET</set-method>
-                <set-header name="x-ms-version" exists-action="override">
-                    <value>2019-07-07</value>
-                </set-header>
-                <authentication-managed-identity resource="https://storage.azure.com" />
-            </send-request>
-            <choose>
+        <when condition="@(!context.Variables.ContainsKey("clientProgram"))">
+        <send-request mode="new" timeout="20" response-variable-name="blobResponse" ignore-error="false">
+            <set-url>@($"https://{{storageaccountname}}.blob.core.windows.net/{{containername}}/{context.Variables.GetValueOrDefault<string>("programCode")}.json")</set-url>
+            <set-method>GET</set-method>
+            <set-header name="x-ms-version" exists-action="override">
+                <value>2019-07-07</value>
+            </set-header>
+            <authentication-managed-identity resource="https://storage.azure.com" />
+        </send-request>
+        <choose>
             <when condition="@(((IResponse)context.Variables["blobResponse"]).StatusCode == 200)">
             <set-variable name="clientProgram" value="@($"{((IResponse)context.Variables["blobResponse"]).Body.As<string>() }")" />
-            <cache-store-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["clientProgram"])" duration="10" />
+            <cache-store-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["clientProgram"])" duration="3600" />
         </when>
-        <otherwise>
-            <set-variable name="clientProgram" value="NotFound" />
-            <cache-store-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["clientProgram"])" duration="10" />
-        </otherwise>
-    </choose>
-</when>
+            <otherwise>
+                <set-variable name="clientProgram" value="NotFound" />
+                <cache-store-value key="@($"CLIENT-PROGRAM-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["clientProgram"])" duration="10" />
+            </otherwise>
         </choose>
+    </when>
+</choose>
 <choose>
 <when condition="@(String.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("clientProgram")) || context.Variables.GetValueOrDefault<string>("clientProgram") == "NotFound")">
 <return-response>
@@ -61,11 +60,12 @@
         </choose>
 <choose>
 <when condition="@((bool)JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.enableOAuth"))">
+<set-variable name="tenantId" value="@(JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.tenantId"))" />
 <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. Access token is missing or invalid.">
-    <openid-config url="https://login.microsoftonline.com/${tenant_id}/v2.0/.well-known/openid-configuration" />
+    <openid-config url="@($"https://login.microsoftonline.com/{context.Variables["tenantId"]}/.well-known/openid-configuration")" />
     <required-claims>
         <claim name="aud">
-            <value>api://${apim_app_display_name}</value>
+            <value>@((string)JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.aud"))</value>
         </claim>
     </required-claims>
 </validate-jwt>

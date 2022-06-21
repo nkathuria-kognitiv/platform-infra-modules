@@ -67,16 +67,6 @@ resource "azurerm_api_management_api_operation" "operation" {
     required = true
     type = "string"
   }
-  /*request {
-    representation {
-      content_type = "application/json"
-
-      example {
-        name = "default"
-        value = jsonencode({ amount = 10000, orderReference = "CXOEJ2B3RLF41H" })
-      }
-    }
-  }*/
 }
 
 resource "azurerm_api_management_api_operation_policy" "operation" {
@@ -85,5 +75,4 @@ resource "azurerm_api_management_api_operation_policy" "operation" {
   api_name = azurerm_api_management_api.api.name
   operation_id = azurerm_api_management_api_operation.operation.operation_id
   xml_content = file("mock-get-member-policy.xml")
-
 }

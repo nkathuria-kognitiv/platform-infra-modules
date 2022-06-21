@@ -19,9 +19,12 @@ data azurerm_resource_group "rsg"{
 
 data "azurerm_client_config" "current" {}
 
+variable "keyvault_rsg_name" {
+}
+
 data "azurerm_key_vault" "keyvault" {
   name = "${var.keyvaultname}"
-  resource_group_name = data.azurerm_resource_group.rsg.name
+  resource_group_name = "${var.keyvault_rsg_name}"
 }
 
 resource "azurerm_api_management" "apim" {
@@ -34,20 +37,14 @@ resource "azurerm_api_management" "apim" {
   identity {
     type = "SystemAssigned"
   }
-  /*hostname_configuration{
-    gateway{
-      host_name = "api-qa.internal-kognitiv.com"
-      key_vault_id  =  "https://${var.keyvaultname}.vault.azure.net/secrets/${var.certificate_name}"
-    }
-  }*/
 }
 
 resource "azurerm_api_management_custom_domain" "apim" {
   api_management_id = azurerm_api_management.apim.id
 
   gateway{
-    host_name = "api-qa.internal-kognitiv.com"
-    key_vault_id  =  "https://${var.keyvaultname}.vault.azure.net/secrets/${var.certificate_name}"
+    host_name = "${var.custom_domain_host_name}"
+    key_vault_id  = "https://${var.keyvaultname}.vault.azure.net/secrets/${var.certificate_name}"
   }
 
 
@@ -129,7 +126,6 @@ resource "azurerm_role_assignment" "apim_keyvault_access" {
   principal_id = azurerm_api_management.apim.identity.0.principal_id
   role_definition_name = "Key Vault Reader"
 }
-
 
 
 #Health Probe API

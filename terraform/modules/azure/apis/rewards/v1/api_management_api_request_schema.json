@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "memberId": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "language": {
+      "type": "string"
+    },
+    "categoryId": {
+      "type": "string"
+    }
+  }
+}

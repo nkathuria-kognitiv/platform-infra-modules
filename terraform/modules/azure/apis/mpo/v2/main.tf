@@ -37,6 +37,15 @@ resource "azurerm_api_management_api" "api" {
     query = "subscription-key"
   }
 }
+resource "azurerm_api_management_api_schema" "deposit_schema" {
+  api_management_name = "${var.apim_name}"
+  resource_group_name = "${var.resource_group_name}"
+  api_name = azurerm_api_management_api.api.name
+  schema_id =  "Deposit"
+  content_type = "application/json"
+  value               = file("Deposit-Definiton.json")
+}
+
 
 resource "azurerm_api_management_api_operation" "deposit" {
   api_management_name = "${var.apim_name}"
@@ -51,11 +60,23 @@ resource "azurerm_api_management_api_operation" "deposit" {
     name = "programCode"
     required = true
     type = "string"
+    values = ["NAB"]
   }
   template_parameter {
     name = "memberId"
     required = true
     type = "string"
+    values = ["87cc6708-d91a-4ecc-af98-17b405b2373a", "ef7cf9c0-2443-4e3e-b0f5-76883ce6f794", "3e45936a-a65f-4e1b-8430-b70045a9dfb3"]
+  }
+  request {
+    representation {
+      content_type = "application/json"
+      example{
+        name="default"
+        value=jsonencode({amount="200",currency="NABRWDS",dataPartner="NAB",description="Alla Test", interactionType="value"})
+      }
+
+    }
   }
 }
 
@@ -86,6 +107,13 @@ resource "azurerm_api_management_api_operation" "members" {
     name = "memberId"
     required = true
     type = "string"
+  }
+  request {
+    query_parameter {
+      name = "fields"
+      required = false
+      type = ""
+    }
   }
 }
 

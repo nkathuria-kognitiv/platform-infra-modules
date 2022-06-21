@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=2.99.0"
+      version = "=3.10.0"
     }
   }
   backend "azurerm" {}
@@ -190,11 +190,7 @@ request {
     required = false
     type = "string"
   }
-  query_parameter {
-    name = "pageNumber"
-    required = false
-    type = "int"
-  }
+
   query_parameter {
     name = "language"
     required = true
@@ -232,7 +228,9 @@ resource "azurerm_api_management_api_operation" "get-program-member-offers" {
     required = true
     type = "string"
   }
-
+  response {
+    status_code = 200
+  }
 }
 
 resource "azurerm_api_management_api_operation_policy" "get-program-member-offers" {
@@ -250,13 +248,16 @@ resource "azurerm_api_management_api_operation" "get-merchant-categories" {
   display_name = "Get Program Merchant Categories"
   description = "Get Program Merchant Categories"
   method = "GET"
-  operation_id = "get-merchants"
+  operation_id = "6285b54e14d1f0635441509b"
   url_template = "/programs/{programCode}/rewards/merchantCategories"
   template_parameter {
     name = "programCode"
     required = true
     type = "string"
     values = ["NAB"]
+  }
+  response {
+    status_code = 200
   }
 }
 
@@ -287,11 +288,13 @@ resource "azurerm_api_management_api_operation" "get-merchant-list" {
       name = "pageNumber"
       required = false
       type = "int"
+      default_value = 0
     }
     query_parameter {
       name = "pageSize"
       required = false
       type = "int"
+      default_value = 0 # TODO Should be confirmed
     }
   }
 }
@@ -304,6 +307,15 @@ resource "azurerm_api_management_api_operation_policy" "get-merchant-list" {
   xml_content = file("v1-get-merchant-list-policy.xml")
 }
 
+/*resource "api_management_api_schema" "request" {
+  api_management_name = "${var.apim_name}"
+  resource_group_name = "${var.resource_group_name}"
+  api_name = azurerm_api_management_api.api.name
+  schema_id           = "request"
+  content_type        = "application/json"
+  value               = file("api_management_api_request_schema.json")
+}*/
+
 
 resource "azurerm_api_management_api_operation" "create-post-member-click" {
   api_management_name = "${var.apim_name}"
@@ -312,13 +324,33 @@ resource "azurerm_api_management_api_operation" "create-post-member-click" {
   display_name = "Post Member Click"
   method = "POST"
   operation_id = "create-post-member-click"
-  url_template = "/programs/{programCode}/rewards/clicks"
+  url_template = "/programs/{programCode}/rewards/offers/{offerId}/clicks"
   template_parameter {
     name = "programCode"
     required = true
     type = "string"
   }
+  template_parameter {
+    name = "offerId"
+    required = true
+    type="string"
+  }
+
+  request {
+    representation {
+      content_type = "application/json"
+      example {
+        name = "default"
+        value = jsonencode({memberId={source="LID",value="123456"},language="en",categoryId="123"})
+        # TODO Update this value
+      }
+      #type="request"
+      #schema_id = api_management_api_schema.request.schema_id
+    }
+  }
 }
+
+
 
 resource "azurerm_api_management_api_operation_policy" "create-post-member-click" {
   api_management_name = "${var.apim_name}"

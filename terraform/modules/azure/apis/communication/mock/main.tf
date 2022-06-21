@@ -29,7 +29,7 @@ resource "azurerm_api_management_api" "api" {
   path = "communications"
   protocols = ["https"]
   resource_group_name = "${var.resource_group_name}"
-  revision = "mock"
+  revision = "1"
   version_set_id = data.azurerm_api_management_api_version_set.versionset.id
   version = "mock"
   subscription_key_parameter_names {
@@ -50,6 +50,7 @@ resource "azurerm_api_management_api_operation" "operation" {
   resource_group_name = "${var.resource_group_name}"
   api_name = azurerm_api_management_api.api.name
   display_name = "Member Email  - Lookup Member Info"
+  description = "Member Email  - Lookup Member Info"
   method = "POST"
   operation_id = "member-email-lookup-member-info"
   url_template = "/programs/{programCode}/members/{externalMemberId}/source/{source}/emails"
@@ -69,6 +70,18 @@ resource "azurerm_api_management_api_operation" "operation" {
     required = true
     type = "string"
   }
+  request {
+    description = "{\"details\":\"{\"currentYear\":\"2022\",\"merchangeName\":\"Apple\",\"rewardAmount\":\"200\",\"rewardType\":\"points\",\"transactionDate\":\"2022-05-11T15:25:00\"}\",\"templateId\":\"12345\"}"
+    representation {
+      content_type = "application/json"
+
+      example {
+        name="default"
+        value ="{\"details\":\"{\"currentYear\":\"2022\",\"merchangeName\":\"Apple\",\"rewardAmount\":\"200\",\"rewardType\":\"points\",\"transactionDate\":\"2022-05-11T15:25:00\"}\",\"templateId\":\"12345\"}"
+      }
+    }
+  }
+
 }
 
 resource "azurerm_api_management_api_operation_policy" "operation_policy" {
@@ -76,6 +89,6 @@ resource "azurerm_api_management_api_operation_policy" "operation_policy" {
   resource_group_name = "${var.resource_group_name}"
   api_name = azurerm_api_management_api.api.name
   operation_id = azurerm_api_management_api_operation.operation.operation_id
-  xml_content = file("mock-communication-policy.xml")
+  xml_content = file("mock-member-email-lookup-info-policy.xml")
 
 }

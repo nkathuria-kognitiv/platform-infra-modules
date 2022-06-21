@@ -79,12 +79,12 @@ resource "azurerm_api_management_api_operation_policy" "operation" {
   resource_group_name = "${var.resource_group_name}"
   api_name = azurerm_api_management_api.api.name
   operation_id = azurerm_api_management_api_operation.operation.operation_id
-  xml_content = file("v1-member-policy.xml")
+  xml_content = file("v1-get-member-by-external-id-policy.xml")
 
 }
 resource "azurerm_api_management_api_policy" "api_policy" {
-  api_name            = azurerm_api_management
-  api_management_name = azurerm_api_management.apim.name
+  api_name = azurerm_api_management_api.api.name
+  api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
   xml_content = file("v1-loyalty-api-policy.xml")
 }

@@ -75,6 +75,9 @@ resource "azurerm_api_management_api_operation" "post_click" {
 
     }
   }
+  response {
+    status_code = 200
+  }
 }
 
 resource "azurerm_api_management_api_operation_policy" "post_click" {
@@ -107,6 +110,15 @@ resource "azurerm_api_management_api_operation" "active_offers" {
   }
   response {
     status_code = 200
+    description = ""
+    representation {
+      content_type = "application/json"
+      # TODO Update the schema defnition for this resource schema_id =
+      example {
+        name = "default"
+        value = jsonencode({offers={offer="asdf"}})
+      }
+    }
   }
 }
 
@@ -129,8 +141,8 @@ resource "azurerm_api_management_api_operation" "get_clicks" {
   template_parameter {
     name = "programCode"
     required = true
-    type = "string"
-    values = ["NAB"]
+    type = ""
+    values = [""]
   }
   template_parameter {
     name = "valueOfExternalMemberId"
@@ -143,12 +155,10 @@ resource "azurerm_api_management_api_operation" "get_clicks" {
     type = "string"
   }
 
-  request {
-    representation {
-      content_type = "application/json"
-
-    }
+  response {
+    status_code = 200
   }
+
 }
 
 resource "azurerm_api_management_api_operation_policy" "get_clicks" {
@@ -171,7 +181,7 @@ resource "azurerm_api_management_api_operation" "get_transaction" {
     name = "programCode"
     required = true
     type = "string"
-    values = ["NAB"]
+    values = [""]
   }
   template_parameter {
     name = "valueOfExternalMemberId"
@@ -183,7 +193,9 @@ resource "azurerm_api_management_api_operation" "get_transaction" {
     required = true
     type = "string"
   }
-
+  response {
+    status_code = 200
+  }
 }
 
 resource "azurerm_api_management_api_operation" "get-program-member-offers" {
@@ -198,7 +210,6 @@ resource "azurerm_api_management_api_operation" "get-program-member-offers" {
     name = "programCode"
     required = true
     type = "string"
-    values = ["NAB"]
   }
   template_parameter {
     name = "merchantId"

@@ -35,7 +35,7 @@ resource "azurerm_api_management_api" "api" {
   path = "communications"
   protocols = ["https"]
   resource_group_name = "${var.resource_group_name}"
-  revision = "v1"
+  revision = "1"
   version_set_id = data.azurerm_api_management_api_version_set.versionset.id
   version = "v1"
   subscription_key_parameter_names {
@@ -74,6 +74,17 @@ resource "azurerm_api_management_api_operation" "member-email-lookup-member-info
     name = "source"
     required = true
     type = "string"
+  }
+  request {
+    description = "{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:00\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
+    representation {
+      content_type = "application/json"
+
+      example {
+        name="default"
+        value ="{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:00\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
+      }
+    }
   }
 }
 
