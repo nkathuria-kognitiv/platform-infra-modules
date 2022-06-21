@@ -39,9 +39,6 @@
             var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
             var defaultValuesforGetAllActiveOffers = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getAllActiveOffers"].Value<JObject>();
             var offers = (JArray)payLoad.SelectToken("results");
-            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
-            returnResponse.Add("numberOfRecords", (int)payLoad.SelectToken("pageSize"));
-            returnResponse.Add("totalRecords", (int)payLoad.SelectToken("total"));
             foreach(JObject offer in offers) {
             var offerResponse = new JObject();
             var offerObj = new JObject();

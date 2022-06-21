@@ -30,111 +30,131 @@
             <value>@(context.Request.Url.Query.GetValueOrDefault("endDate"))</value>
         </set-query-parameter>
         <set-query-parameter name="language" exists-action="override">
-            <value>@(context.Request.Url.Query.GetValueOrDefault("language", "en"))</value>
+            <value>@(context.Request.Url.Query.GetValueOrDefault("language", ((string)((JObject)context.Variables["affiliateMall"])["defaultLanguage"])))</value>
         </set-query-parameter>
-        <rewrite-uri template="/{programCode}/transactions" />
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-        <set-body>@{
-            var returnResponse = new JObject();
-            var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
-            var defaultValuesForGetMemberTransactions = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getMemberTransactions"].Value<JObject>();
-            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
-            returnResponse.Add("numberOfRecords", (int)payLoad.SelectToken("pageSize"));
-            returnResponse.Add("totalRecords", (int)payLoad.SelectToken("total"));
-            var results = (JArray)payLoad.SelectToken("results");
-            var transactions = new JArray();
-            foreach(JObject result in results) {
-            var transaction = new JObject();
-            transaction.Add("id", (int)result.SelectToken("id"));
-            var clickObj = (JObject)result.SelectToken("click");
-            transaction.Add("date", result.SelectToken("created"));
-            if (clickObj != null) {
-            transaction.Add("clickId", (int)clickObj.SelectToken("id"));
-            }
-            transaction.Add("status", (String)result.SelectToken("transactionStatus"));
+        <choose>
+            <when condition="@(context.Request.Url.Query.GetValueOrDefault("pageNumber" , "0") == "0" || context.Request.Url.Query.GetValueOrDefault("pageSize" , "0") == "0")">
+            <set-query-parameter name="pageSize" exists-action="override">
+                <value>0</value>
+            </set-query-parameter>
+            <set-query-parameter name="pageNumber" exists-action="override">
+                <value>0</value>
+            </set-query-parameter>
+        </when>
+        <otherwise>
+            <set-query-parameter name="pageNumber" exists-action="override">
+                <value>@((Int32.Parse(context.Request.Url.Query.GetValueOrDefault("pageNumber")) -1).ToString())</value>
+            </set-query-parameter>
+        </otherwise>
+    </choose>
+    <rewrite-uri template="/{programCode}/transactions" />
+</inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+<set-body>@{
+    var returnResponse = new JObject();
+    var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
+    var defaultValuesForGetMemberTransactions = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getMemberTransactions"].Value<JObject>();
+    //returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
+    if ((int)payLoad.SelectToken("pageSize") != 0){
+    returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber") + 1);
+    } else {
+    returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
+    }
+    returnResponse.Add("pageSize", (int)payLoad.SelectToken("pageSize"));
+    returnResponse.Add("totalNumberOfRecords", (int)payLoad.SelectToken("total"));
+    var results = (JArray)payLoad.SelectToken("results");
+    var transactions = new JArray();
+    foreach(JObject result in results) {
+    var transaction = new JObject();
+    transaction.Add("id", (int)result.SelectToken("id"));
+    var clickObj = (JObject)result.SelectToken("click");
+    transaction.Add("date", result.SelectToken("created"));
+    if (clickObj != null) {
+    transaction.Add("clickId", (int)clickObj.SelectToken("id"));
+    }
+    transaction.Add("status", (String)result.SelectToken("transactionStatus"));
 
-            transaction.Add("approvalDate", result.SelectToken("approvedDate") != null ? result.SelectToken("approvedDate") : "");
-
-            var transactionAffiliateOrder = (JObject)result.SelectToken("transactionAffiliateOrder");
-            if (transactionAffiliateOrder != null){
-            //TransactionAffiliateIteration#saleAmount
-            transaction.Add("originalAmount", (double)transactionAffiliateOrder.SelectToken("saleAmount"));
-            }
-
-
-            var rewards = (JArray)result.SelectToken("transactionRewards");
-            if (rewards != null) {
-            foreach(JObject reward in rewards) {
-            transaction.Add("rewardedAmount", (double)reward.SelectToken("rewardAmount"));
-            //transaction.Add("rewardType", (String)reward.SelectToken("rewardType"));
-            transaction.Add("rewardCurrency", (String)reward.SelectToken("rewardCurrency"));
-            break;
-            }
-            }
-
-            var merchantObj = (JObject)result.SelectToken("merchantDTO");
-            var merchant = new JObject();
-
-            //var merchantName = (String)merchantObj.SelectToken("name");
-            var merchantDetails = (JArray)merchantObj.SelectToken("merchantDetailsDTOs");
-
-            if(merchantDetails != null){
-            var localNames = new JArray();
-
-            foreach(JObject merchantDetailObj in merchantDetails) {
-            var localNameObj = new JObject();
-            localNameObj.Add("name", (String)merchantDetailObj.SelectToken("name"));
-            localNameObj.Add("language", (String)merchantDetailObj.SelectToken("language"));
-
-            var merchantDigitalAssets = (JArray)merchantDetailObj.SelectToken("merchantDigitalAssetDTOs");
-
-            if(merchantDigitalAssets != null){
-            //var merchantDigitalAsset = merchantDigitalAssets.FirstOrDefault()?["digitalAssetDTO"]?.Value<JObject>();
-            var images = new JArray();
-            foreach(JObject digitalAsset in merchantDigitalAssets) {
-            var image = new JObject();
-            image.Add("url", (String)digitalAsset.SelectToken("url"));
-            image.Add("alt", (String)digitalAsset.SelectToken("altText"));
-            image.Add("order", (String)digitalAsset.SelectToken("displayOrder"));
-            image.Add("type", (String)digitalAsset.SelectToken("categoryType"));
-            images.Add(image);
-            }
-
-            localNameObj.Add("images", images);
-            }
-
-            localNames.Add(localNameObj);
-
-            }
-            merchant.Add("localNames", localNames);
-            }
+    // transaction.Add("approvalDate", result.SelectToken("approvedDate") != null ? result.SelectToken("approvedDate") : "");
+    transaction.Add("approvalDate", result.SelectToken("approvedDate"));
+    var transactionAffiliateOrder = (JObject)result.SelectToken("transactionAffiliateOrder");
+    if (transactionAffiliateOrder != null){
+    //TransactionAffiliateIteration#saleAmount
+    transaction.Add("originalAmount", (double)transactionAffiliateOrder.SelectToken("saleAmount"));
+    }
 
 
-            var externalId = new JObject();
-            merchant.Add("id",(int)merchantObj.SelectToken("id"));
-            externalId.Add("source", (string)defaultValuesForGetMemberTransactions.SelectToken("externalReferenceSource"));  //AffiliateMall
-            externalId.Add("value", (int)merchantObj.SelectToken("id"));
-            merchant.Add("externalReferenceId", externalId);
-            //merchant.Add("type", (string)defaultValuesForGetMemberTransactions.SelectToken("type")); //  need to clarification
-            merchant.Add("typeStatus", (String)merchantObj.SelectToken("merchantStatus") );
-            //var categories = (JArray)merchantObj.SelectToken("categories");
-            transaction.Add("merchant", merchant);
-            transactions.Add(transaction);
+    var rewards = (JArray)result.SelectToken("transactionRewards");
+    if (rewards != null) {
+    foreach(JObject reward in rewards) {
+    transaction.Add("rewardedAmount", (double)reward.SelectToken("rewardAmount"));
+    //transaction.Add("rewardType", (String)reward.SelectToken("rewardType"));
+    transaction.Add("rewardCurrency", (String)reward.SelectToken("rewardCurrency"));
+    break;
+    }
+    }
+
+    var merchantObj = (JObject)result.SelectToken("merchantDTO");
+    var merchant = new JObject();
+
+    //var merchantName = (String)merchantObj.SelectToken("name");
+    var merchantDetails = (JArray)merchantObj.SelectToken("merchantDetailsDTOs");
+
+    if(merchantDetails != null){
+    var localNames = new JArray();
+
+    foreach(JObject merchantDetailObj in merchantDetails) {
+    var localNameObj = new JObject();
+    localNameObj.Add("name", (String)merchantDetailObj.SelectToken("name"));
+    localNameObj.Add("language", (String)merchantDetailObj.SelectToken("language"));
+
+    var merchantDigitalAssets = (JArray)merchantDetailObj.SelectToken("merchantDigitalAssetDTOs");
+
+    if(merchantDigitalAssets != null){
+    //var merchantDigitalAsset = merchantDigitalAssets.FirstOrDefault()?["digitalAssetDTO"]?.Value<JObject>();
+    var images = new JArray();
+    foreach(JObject digitalAsset in merchantDigitalAssets) {
+    var image = new JObject();
+    image.Add("url", (String)digitalAsset.SelectToken("url"));
+    image.Add("alt", (String)digitalAsset.SelectToken("altText"));
+    image.Add("order", (String)digitalAsset.SelectToken("displayOrder"));
+    image.Add("type", (String)digitalAsset.SelectToken("categoryType"));
+    images.Add(image);
+    }
+
+    localNameObj.Add("images", images);
+    }
+
+    localNames.Add(localNameObj);
+
+    }
+    merchant.Add("localNames", localNames);
+    }
 
 
-            }
-            returnResponse.Add("transactions", transactions);
+    var externalId = new JObject();
+    merchant.Add("id",(int)merchantObj.SelectToken("id"));
+    externalId.Add("source", (string)defaultValuesForGetMemberTransactions.SelectToken("externalReferenceSource"));  //AffiliateMall
+    externalId.Add("value", (int)merchantObj.SelectToken("id"));
+    merchant.Add("externalReferenceId", externalId);
+    //merchant.Add("type", (string)defaultValuesForGetMemberTransactions.SelectToken("type")); //  need to clarification
+    //merchant.Add("typeStatus", (String)merchantObj.SelectToken("merchantStatus") );
+    //var categories = (JArray)merchantObj.SelectToken("categories");
+    transaction.Add("merchant", merchant);
+    transactions.Add(transaction);
 
-            return returnResponse.ToString();
 
-            }</set-body>
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
+    }
+    returnResponse.Add("transactions", transactions);
+
+    return returnResponse.ToString();
+
+    }</set-body>
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

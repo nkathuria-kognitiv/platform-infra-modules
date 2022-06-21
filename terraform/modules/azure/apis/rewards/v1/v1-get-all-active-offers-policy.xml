@@ -36,9 +36,6 @@
             var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
             var defaultValuesforGetAllActiveOffers = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getAllActiveOffers"].Value<JObject>();
             var offers = (JArray)payLoad.SelectToken("results");
-            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
-            returnResponse.Add("numberOfRecords", (int)payLoad.SelectToken("pageSize"));
-            returnResponse.Add("totalRecords", (int)payLoad.SelectToken("total"));
             foreach(JObject offer in offers) {
             var offerResponse = new JObject();
             var offerObj = new JObject();
@@ -47,8 +44,13 @@
             externalId.Add("source", (string)defaultValuesforGetAllActiveOffers.SelectToken("externalReferenceSource"));
             externalId.Add("value", (int)offer.SelectToken("id"));
             offerObj.Add("externalReferenceId", externalId);
-            offerObj.Add("startDate", offer.SelectToken("created"));
-            offerObj.Add("endDate", offer.SelectToken("modified"));
+
+            var offerRestriction = (JObject)offer.SelectToken("offerRestrictionDTO");
+            if(offerRestriction != null){
+            offerObj.Add("startDate", offerRestriction.SelectToken("start"));
+            offerObj.Add("endDate", offerRestriction.SelectToken("end"));
+            }
+
             offerObj.Add("type", (string)defaultValuesforGetAllActiveOffers.SelectToken("type"));
             var offerDetails = (JArray)offer.SelectToken("offerDetailsDTOs");
             var marketingDescription = new JArray();

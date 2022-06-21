@@ -13,12 +13,28 @@
 <policies>
     <inbound>
         <base />
+        <set-method>GET</set-method>
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+        </set-header>
+        <rewrite-uri template="/{programCode}/categories" />
     </inbound>
     <backend>
         <base />
     </backend>
     <outbound>
         <base />
+        <set-body>@{
+            var returnResponse = new JObject();
+            var categoryList = new JArray();
+            var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
+            var categories = (JArray)payLoad.SelectToken("categories");
+            foreach(JObject category in categories) {
+            categoryList.Add(category);
+            }
+            returnResponse.Add("categories", categoryList);
+            return returnResponse.ToString();
+            }</set-body>
     </outbound>
     <on-error>
         <base />

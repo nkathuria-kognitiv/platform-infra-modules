@@ -248,7 +248,7 @@ resource "azurerm_api_management_api_operation" "get-merchant-categories" {
   display_name = "Get Program Merchant Categories"
   description = "Get Program Merchant Categories"
   method = "GET"
-  operation_id = "6285b54e14d1f0635441509b"
+  operation_id = "get-merchant-categories"
   url_template = "/programs/{programCode}/rewards/merchantCategories"
   template_parameter {
     name = "programCode"
@@ -276,7 +276,7 @@ resource "azurerm_api_management_api_operation" "get-merchant-list" {
   display_name = "Get Program Merchant List"
   description = "Get Program Merchant List"
   method = "GET"
-  operation_id = "get-merchants"
+  operation_id = "get-merchant-list"
   url_template = "/programs/{programCode}/rewards/merchants"
   template_parameter {
     name = "programCode"

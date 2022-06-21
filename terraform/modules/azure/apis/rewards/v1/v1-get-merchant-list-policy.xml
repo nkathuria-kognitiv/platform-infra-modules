@@ -17,6 +17,12 @@
         <set-header name="Content-Type" exists-action="override">
             <value>application/json</value>
         </set-header>
+        <set-query-parameter name="pageSize" exists-action="override">
+            <value>0</value>
+        </set-query-parameter>
+        <set-query-parameter name="pageNumber" exists-action="override">
+            <value>0</value>
+        </set-query-parameter>
         <rewrite-uri template="/{programCode}/merchants" />
     </inbound>
     <backend>
@@ -29,13 +35,9 @@
             var merchantList = new JArray();
             var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
             var defaultValuesforGetAllMerchants = JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("affiliateMall")["apiDefaultValues"]["getMerchantList"].Value<JObject>();
-            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
-            returnResponse.Add("numberOfRecords", (int)payLoad.SelectToken("pageSize"));
-            returnResponse.Add("totalRecords", (int)payLoad.SelectToken("total"));
             var merchants = (JArray)payLoad.SelectToken("results");
             foreach(JObject merchant in merchants) {
             var merchantObj = new JObject();
-
             var merchantDetails = (JArray)merchant.SelectToken("merchantDetailsDTOs");
             var merchantId = (String)merchant.SelectToken("id");
             merchantObj.Add("id", merchantId);
@@ -60,7 +62,9 @@
             image.Add("url", (String)merchantDigitalAsset.SelectToken("url"));
             image.Add("type", (String)merchantDigitalAsset.SelectToken("categoryType"));
             image.Add("altText", (String)merchantDigitalAsset.SelectToken("altText"));
+            if (null != merchantDigitalAsset.SelectToken("displayOrder")) {
             image.Add("displayOrder", merchantDigitalAsset.SelectToken("displayOrder"));
+            }
             images.Add(image);
 
             }
@@ -69,7 +73,6 @@
             merchantDetail.Add("images",images);
 
             mDetails.Add(merchantDetail);
-
             }
             merchantObj.Add("localNames",mDetails);
             var externalId = new JObject();
@@ -88,13 +91,9 @@
             merchantObj.Add("lastModifiedDate", merchant.SelectToken("modified"));
 
             merchantList.Add(merchantObj);
-
             }
-
-
             returnResponse.Add("merchants", merchantList);
             return returnResponse.ToString();
-
             }</set-body>
     </outbound>
     <on-error>

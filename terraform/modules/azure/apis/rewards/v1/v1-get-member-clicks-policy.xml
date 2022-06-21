@@ -23,89 +23,115 @@
         <set-query-parameter name="memberIdSource" exists-action="append">
             <value>@(context.Request.MatchedParameters["sourceId"])</value>
         </set-query-parameter>
-        <rewrite-uri template="/{programCode}/clicks" />
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-        <set-body>@{
-            var returnResponse = new JObject();
-            var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
-            returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
-            returnResponse.Add("pageSize", (int)payLoad.SelectToken("pageSize"));
-            returnResponse.Add("totalNumberOfRecords", (int)payLoad.SelectToken("total"));
-            var results = (JArray)payLoad.SelectToken("results");
+        <set-query-parameter name="language" exists-action="override">
+            <value>@(context.Request.Url.Query.GetValueOrDefault("language", ((string)((JObject)context.Variables["affiliateMall"])["defaultLanguage"])))</value>
+        </set-query-parameter>
+        <choose>
+            <when condition="@(context.Request.Url.Query.GetValueOrDefault("pageNumber" , "0") == "0" || context.Request.Url.Query.GetValueOrDefault("pageSize" , "0") == "0")">
+            <set-query-parameter name="pageSize" exists-action="override">
+                <value>0</value>
+            </set-query-parameter>
+            <set-query-parameter name="pageNumber" exists-action="override">
+                <value>0</value>
+            </set-query-parameter>
+        </when>
+        <otherwise>
+            <set-query-parameter name="pageNumber" exists-action="override">
+                <value>@((Int32.Parse(context.Request.Url.Query.GetValueOrDefault("pageNumber")) -1).ToString())</value>
+            </set-query-parameter>
+        </otherwise>
+    </choose>
+    <rewrite-uri template="/{programCode}/clicks" />
+</inbound>
+<backend>
+<base />
+</backend>
+<outbound>
+<base />
+<set-body>@{
+    var returnResponse = new JObject();
+    var payLoad = (JObject)context.Response.Body.As<JObject>(preserveContent: true).SelectToken("payload");
 
-            var clicks = new JArray();
+    if ((int)payLoad.SelectToken("pageSize")  != 0){
+    returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber")  +  1);
+    } else {
+    returnResponse.Add("page", (int)payLoad.SelectToken("pageNumber"));
+    }
 
-            foreach(JObject result in results) {
-            var click = new JObject();
-            click.Add("internalId",  (int)result.SelectToken("internalId"));
-            click.Add("externalId", (String)result.SelectToken("externalId"));
-            click.Add("date", result.SelectToken("createdDate"));
-
-
-            var merchantDTO = (JObject)result.SelectToken("merchantDTO");
-
-            if (merchantDTO != null) {
-            var merchantDetailsDTOs = (JArray)merchantDTO.SelectToken("merchantDetailsDTOs");
-            if (merchantDetailsDTOs != null) {
-
-
-            var merchant = new JObject();
-            merchant.Add("id", (String)merchantDTO.SelectToken("id"));
-
-
-
-            foreach(JObject merchantDetailsDTO in merchantDetailsDTOs) {
-
-            var localNameObj = new JObject();
-            localNameObj.Add("name", (String)merchantDetailsDTO.SelectToken("name"));
-            localNameObj.Add("language", (String)merchantDetailsDTO.SelectToken("language"));
+    returnResponse.Add("pageSize", (int)payLoad.SelectToken("pageSize"));
 
 
-            var   merchantDigitalAssetDTOs = (JArray)merchantDetailsDTO.SelectToken("merchantDigitalAssetDTOs");
 
-            if (merchantDigitalAssetDTOs != null) {
-            var images = new JArray();
-            foreach(JObject image in merchantDigitalAssetDTOs) {
+    returnResponse.Add("totalNumberOfRecords", (int)payLoad.SelectToken("total"));
+    var results = (JArray)payLoad.SelectToken("results");
 
-            var imageObj = new JObject();
-            imageObj.Add("url",  (String)image.SelectToken("url"));
-            imageObj.Add("alt",  (String)image.SelectToken("altText"));
-            imageObj.Add("type",  (String)image.SelectToken("categoryType"));
-            imageObj.Add("order",  (String)image.SelectToken("displayOrder"));
+    var clicks = new JArray();
 
-            images.Add(imageObj);
-            }
-            localNameObj.Add("images", images);
-            }
+    foreach(JObject result in results) {
+    var click = new JObject();
+    click.Add("id",  (int)result.SelectToken("internalId"));
+    click.Add("date", result.SelectToken("createdDate"));
 
-            merchant.Add("localNames",  localNameObj);
+    var externalReferenceId = (JObject)result.SelectToken("externalReferenceId");
 
-
-            }
-
-            click.Add("merchant", merchant);
-
-            }
-
-            }
-
-            clicks.Add(click);
-
-            }
+    if (externalReferenceId != null) {
+    var externalReferenceIdObj = new JObject();
+    externalReferenceIdObj.Add("source", (String)externalReferenceId.SelectToken("source"));
+    externalReferenceIdObj.Add("value", (String)externalReferenceId.SelectToken("value"));
+    click.Add("externalReferenceId",  externalReferenceIdObj);
+    }
 
 
-            returnResponse.Add("clicks", clicks);
+    var merchantDTO = (JObject)result.SelectToken("merchantDTO");
 
-            return returnResponse.ToString();
+    if (merchantDTO != null) {
+    var merchantDetailsDTOs = (JArray)merchantDTO.SelectToken("merchantDetailsDTOs");
+    if (merchantDetailsDTOs != null) {
 
-            }</set-body>
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
+
+    var merchant = new JObject();
+    merchant.Add("id", (String)merchantDTO.SelectToken("id"));
+
+
+
+    foreach(JObject merchantDetailsDTO in merchantDetailsDTOs) {
+    var localNames = new JArray();
+    var localNameObj = new JObject();
+    localNameObj.Add("name", (String)merchantDetailsDTO.SelectToken("name"));
+    localNameObj.Add("language", (String)merchantDetailsDTO.SelectToken("language"));
+
+    var   merchantDigitalAssetDTOs = (JArray)merchantDetailsDTO.SelectToken("merchantDigitalAssetDTOs");
+
+    if (merchantDigitalAssetDTOs != null) {
+    var images = new JArray();
+    foreach(JObject image in merchantDigitalAssetDTOs) {
+
+    var imageObj = new JObject();
+    imageObj.Add("url",  (String)image.SelectToken("url"));
+    imageObj.Add("alt",  (String)image.SelectToken("altText"));
+    imageObj.Add("type",  (String)image.SelectToken("categoryType"));
+    imageObj.Add("order",  (String)image.SelectToken("displayOrder"));
+
+    images.Add(imageObj);
+    }
+    localNameObj.Add("images", images);
+    }
+    localNames.Add(localNameObj);
+    merchant.Add("localNames",  localNames);
+    }
+    click.Add("merchant", merchant);
+    }
+    }
+
+    clicks.Add(click);
+    }
+
+    returnResponse.Add("clicks", clicks);
+    return returnResponse.ToString();
+
+    }</set-body>
+</outbound>
+<on-error>
+<base />
+</on-error>
+        </policies>

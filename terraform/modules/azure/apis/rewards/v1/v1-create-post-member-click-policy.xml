@@ -16,14 +16,9 @@
         <set-method>POST</set-method>
         <rewrite-uri template="/{programCode}/clicks" />
         <set-body>@{
-
-
             JObject inBody = context.Request.Body.As<JObject>();
-
-            // inBody.Add("offerId", (String)context.Request.MatchedParameters["offerId"]);
-
+            inBody.Add("offerId", (String)context.Request.MatchedParameters["offerId"]);
             return inBody.ToString();
-
 
             }</set-body>
     </inbound>
