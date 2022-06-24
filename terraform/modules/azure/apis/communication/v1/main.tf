@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=2.99.0"
+      version = "=3.10.0"
     }
   }
   backend "azurerm" {}
@@ -76,13 +76,15 @@ resource "azurerm_api_management_api_operation" "member-email-lookup-member-info
     type = "string"
   }
   request {
-    description = "{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:00\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
+    description = "{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:01\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
     representation {
       content_type = "application/json"
 
       example {
         name="default"
-        value ="{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:00\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
+        value = jsonencode({templateId="5840068", details= {merchantName="Apple",transactionDate="2022-05-11T15:25:01" , rewardAmount="200", rewardType="points",currentYear="2022"}})
+
+        #value ="{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:00\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
       }
     }
   }

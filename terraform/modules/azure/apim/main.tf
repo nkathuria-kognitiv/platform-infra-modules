@@ -40,6 +40,7 @@ resource "azurerm_api_management" "apim" {
 }
 
 resource "azurerm_api_management_custom_domain" "apim" {
+  depends_on = ["azurerm_key_vault_access_policy.keyvault_apim_policy","azurerm_role_assignment.apim_keyvault_access"]
   api_management_id = azurerm_api_management.apim.id
 
   gateway{

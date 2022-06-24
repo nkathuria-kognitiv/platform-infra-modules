@@ -32,10 +32,6 @@
     <set-backend-service base-url="@((string)((JObject)context.Variables["communication"]).SelectToken("acoustic.communicationUrl"))" />
     <!-- Sets the specific endpoint to hit -->
     <rewrite-uri template="@((string)((JObject)context.Variables["communication"]).SelectToken("acoustic.communicationUrlSuffix"))" copy-unmatched-params="true" />
-    <!-- Set necessary headers -->
-    <!--<set-header name="Authorization" exists-action="override">
-        <value>@(context.Variables.GetValueOrDefault<string>("accessToken"))</value>
-    </set-header> -->
     <set-method>POST</set-method>
     <set-header name="Content-Type" exists-action="override">
         <value>application/xml</value>
@@ -96,81 +92,57 @@
         }
         return email;
         }" />
-    </when>
-</choose>
-<set-variable name="transactionId" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("details.transactionId"))" />
-<set-variable name="partnerName" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("details.partnerName"))" />
-<set-variable name="pointsRedeemed" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("details.rewardAmount"))" />
-<set-variable name="subjectTag" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("details.subjectTag"))" />
+        <choose>
+            <when condition="@(context.Variables["email"] == null || context.Variables["email"] == "")">
+            <return-response>
+                <set-status code="400" />
+                <set-body>@{
+                    var response = new JObject();
+                    response.Add("code", 4008);
+                    response.Add("message", "Member email is not found");
+                    return response.ToString();
+                    }</set-body>
+            </return-response>
+        </when>
+    </choose>
+</when>
+        </choose>
 <set-body>@{
-
 var scriptObject = new JObject();
-
-scriptObject.Add("memberFirstName", (string)context.Variables["memberFirstName"]);
-scriptObject.Add("PartnerName", (string)context.Variables["partnerName"]);
-//string nullBomb = null;
-//nullBomb.ToLower();
-scriptObject.Add("PointsRedeemed", (string)context.Variables["pointsRedeemed"]);
-scriptObject.Add("segments", (JArray)context.Variables["segments"]);
-return new XDocument(
-new XElement("XTMAILING",
-new XElement("CAMPAIGN_ID", (string)context.Variables["templateId"]),
-new XElement("TRANSACTION_ID", (string)context.Variables["transactionId"]),
+var transactionId = "";
+var recipient =
 new XElement("RECIPIENT",
 new XElement("EMAIL", (string)context.Variables["email"]),
 new XElement("BODY_TYPE", "HTML"),
 new XElement("PERSONALIZATION",
-new XElement("TAG_NAME", "subjectTag"),
-new XElement("VALUE", (string)context.Variables["subjectTag"])
-),
-new XElement("PERSONALIZATION",
 new XElement("TAG_NAME", "MemberFirstName"),
 new XElement("VALUE", (string)context.Variables["memberFirstName"])
-),
-new XElement("PERSONALIZATION",
-new XElement("TAG_NAME", "PartnerName"),
-new XElement("VALUE", (string)context.Variables["partnerName"])
-),
-new XElement("PERSONALIZATION",
-new XElement("TAG_NAME", "PointsRedeemed"),
-new XElement("VALUE", (string)context.Variables["pointsRedeemed"])
-),
-new XElement("SCRIPT_CONTEXT", new XCData(scriptObject.ToString()))
 )
+);
+foreach (JProperty detail in ((JObject)((JObject)context.Variables["requestBody"]).SelectToken("details")).Properties()) {
+if (detail.Name == "transactionId") {
+transactionId = (string)detail.Value;
+} else {
+var personalization =
+new XElement("PERSONALIZATION",
+new XElement("TAG_NAME", detail.Name),
+new XElement("VALUE", (string)detail.Value)
+);
+recipient.Add(personalization);
+scriptObject.Add(detail.Name, detail.Value);
+}
+}
+scriptObject.Add("MemberFirstName", (string)context.Variables["memberFirstName"]);
+scriptObject.Add("segments", (JArray)context.Variables["segments"]);
+recipient.Add(new XElement("SCRIPT_CONTEXT", new XCData(scriptObject.ToString())));
+return new XDocument(
+new XElement("XTMAILING",
+new XElement("CAMPAIGN_ID", (string)context.Variables["templateId"]),
+new XElement("TRANSACTION_ID", transactionId),
+recipient
 )
 ).ToString();
 }</set-body>
-        <!--<json-to-xml apply="always" consider-accept-header="true" parse-date="true" />-->
-        <!--<return-response>
-            <set-status code="200" reason="asdf" />
-            <set-body>@(context.Request.Body.As<XDocument>().ToString())</set-body>
-        </return-response>-->
-        <!--<set-variable name="requestBody" value="@(context.Request.Body.As<JObject>(preserveContent: true))" />
-        <set-variable name="templateId" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("templateId"))" />
-        <set-variable name="details" value="@((string)((JObject)context.Variables["requestBody"]).SelectToken("details"))" />
-        <choose>
-            <when condition="@(context.Variables["templateId"] == null || context.Variables["templateId"] == "")">
-                <return-response>
-                    <set-status code="400" />
-                    <set-body>@{
-                            var response = new JObject();
-                            response.Add("code", 4005);
-                            response.Add("message", "Missing required templateId");
-                            return response.ToString();
-                        }</set-body>
-                </return-response>
-            </when>
-            <otherwise>
-                <return-response>
-                    <set-status code="200" />
-                    <set-body>@{
-                        var response = new JObject();
-                        response.Add("templateId", (string)context.Variables["templateId"]);
-                        return response.ToString();
-                    }</set-body>
-                </return-response>
-            </otherwise>
-        </choose> -->
         </inbound>
 <backend>
 <base />

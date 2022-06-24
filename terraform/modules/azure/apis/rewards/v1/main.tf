@@ -307,14 +307,18 @@ resource "azurerm_api_management_api_operation_policy" "get-merchant-list" {
   xml_content = file("v1-get-merchant-list-policy.xml")
 }
 
-/*resource "api_management_api_schema" "request" {
+
+
+/*
+resource "azurerm_api_management_api_schema" "request" {
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
   api_name = azurerm_api_management_api.api.name
   schema_id           = "request"
-  content_type        = "application/json"
+  content_type        ="application/vnd.oai.openapi.components+json"
   value               = file("api_management_api_request_schema.json")
-}*/
+}
+*/
 
 
 resource "azurerm_api_management_api_operation" "create-post-member-click" {
@@ -344,8 +348,8 @@ resource "azurerm_api_management_api_operation" "create-post-member-click" {
         value = jsonencode({memberId={source="LID",value="123456"},language="en",categoryId="123"})
         # TODO Update this value
       }
-      #type="request"
-      #schema_id = api_management_api_schema.request.schema_id
+      #type_name="request"
+      #schema_id = azurerm_api_management_api_schema.request.schema_id
     }
   }
 }
@@ -366,3 +370,5 @@ resource "azurerm_api_management_api_policy" "api_policy" {
   resource_group_name = "${var.resource_group_name}"
   xml_content = file("rewards-v1-api-policy.xml")
 }
+
+
