@@ -13,61 +13,61 @@
 <policies>
     <inbound>
         <base />
-        <choose>
+        <!--<choose>
             <when condition="@((bool)JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.enableOAuth"))">
-            <set-variable name="tenantId" value="@(JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.tenantId"))" />
-            <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. Access token is missing or invalid.">
-                <openid-config url="@($"https://login.microsoftonline.com/{context.Variables["tenantId"]}/v2.0/.well-known/openid-configuration")" />
-                <required-claims>
-                    <claim name="roles">
-                        <value>api.all || loyalty.member.read</value>
-                    </claim>
-                </required-claims>
-            </validate-jwt>
-        </when>
-    </choose>
-    <set-variable name="loyalty" value="@(JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("loyalty").Value<JObject>())" />
-    <choose>
-        <when condition="@((string)((JObject)context.Variables["loyalty"]).SelectToken("backendLoyalty") == "alpe")">
-        <cache-lookup-value key="@($"AUTH-{(string)context.Variables["programCode"]}")" variable-name="accessToken" />
+                <set-variable name="tenantId" value="@(JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("OAuth.tenantId"))" />
+                <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. Access token is missing or invalid.">
+                    <openid-config url="@($"https://login.microsoftonline.com/{context.Variables["tenantId"]}/v2.0/.well-known/openid-configuration")" />
+                    <required-claims>
+                        <claim name="roles">
+                            <value>api.all || loyalty.member.read</value>
+                        </claim>
+                    </required-claims>
+                </validate-jwt>
+            </when>
+        </choose> -->
+        <set-variable name="loyalty" value="@(JObject.Parse((string)context.Variables["clientProgram"]).SelectToken("loyalty").Value<JObject>())" />
         <choose>
-            <when condition="@(!context.Variables.ContainsKey("accessToken"))">
-            <set-variable name="authUrl" value="@{
+            <when condition="@((string)((JObject)context.Variables["loyalty"]).SelectToken("backendLoyalty") == "alpe")">
+            <cache-lookup-value key="@($"AUTH-{(string)context.Variables["programCode"]}")" variable-name="accessToken" />
+            <choose>
+                <when condition="@(!context.Variables.ContainsKey("accessToken"))">
+                <set-variable name="authUrl" value="@{
                             var program = ((JObject)context.Variables["loyalty"]).SelectToken("alpe");
                             var urlPrefix = (string)program.SelectToken("apiSecurity.apiSecurityUrl");
                             var urlSuffix = (string)program.SelectToken("apiSecurity.apiSecurityUrlSuffix");
                             return $"{urlPrefix}/{urlSuffix}";
-            }" />
-            <send-request mode="new" response-variable-name="authResponse" timeout="10" ignore-error="true">
-                <set-url>@($"{context.Variables["authUrl"]}")</set-url>
-                <set-method>GET</set-method>
-                <set-header name="Authorization" exists-action="override">
-                    <value>@{
-                        var program = ((JObject)context.Variables["loyalty"]).SelectToken("alpe");
-                        var userId = (string)program.SelectToken("apiSecurity.apiTokenUsername");
-                        var userPwd = (string)program.SelectToken("apiSecurity.apiTokenPassword");
-                        var authHeader = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{userId}:{userPwd}"));
-                        return string.Format("Basic {0}", authHeader);
-                        }</value>
-                </set-header>
-            </send-request>
-            <set-variable name="accessToken" value="@(((IResponse)context.Variables["authResponse"]).Body.As<JObject>()["access_token"].ToString())" />
-            <cache-store-value key="@($"AUTH-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["accessToken"])" duration="3000" />
-        </when>
-    </choose>
-</when>
-<otherwise>
-<return-response>
-    <set-status code="500" />
-    <set-body>@{
-        var response = new JObject();
-        response.Add("code", 5001);
-        response.Add("message", "Program does not have valid backendLoyalty configuration");
-        return response.ToString();
-        }</set-body>
-</return-response>
-</otherwise>
+                }" />
+                <send-request mode="new" response-variable-name="authResponse" timeout="10" ignore-error="true">
+                    <set-url>@($"{context.Variables["authUrl"]}")</set-url>
+                    <set-method>GET</set-method>
+                    <set-header name="Authorization" exists-action="override">
+                        <value>@{
+                            var program = ((JObject)context.Variables["loyalty"]).SelectToken("alpe");
+                            var userId = (string)program.SelectToken("apiSecurity.apiTokenUsername");
+                            var userPwd = (string)program.SelectToken("apiSecurity.apiTokenPassword");
+                            var authHeader = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{userId}:{userPwd}"));
+                            return string.Format("Basic {0}", authHeader);
+                            }</value>
+                    </set-header>
+                </send-request>
+                <set-variable name="accessToken" value="@(((IResponse)context.Variables["authResponse"]).Body.As<JObject>()["access_token"].ToString())" />
+                <cache-store-value key="@($"AUTH-{(string)context.Variables["programCode"]}")" value="@((string)context.Variables["accessToken"])" duration="3000" />
+            </when>
         </choose>
+    </when>
+    <otherwise>
+        <return-response>
+            <set-status code="500" />
+            <set-body>@{
+                var response = new JObject();
+                response.Add("code", 5001);
+                response.Add("message", "Program does not have valid backendLoyalty configuration");
+                return response.ToString();
+                }</set-body>
+        </return-response>
+    </otherwise>
+</choose>
         </inbound>
 <backend>
 <base />

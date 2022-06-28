@@ -51,6 +51,12 @@ resource "azurerm_api_management_product_api" "api" {
   resource_group_name = "${var.resource_group_name}"
 }
 
+variable "post_email_schema_id" {
+  default = ""
+}
+variable "post_email_type_name" {
+  default = ""
+}
 resource "azurerm_api_management_api_operation" "member-email-lookup-member-info" {
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
@@ -58,7 +64,7 @@ resource "azurerm_api_management_api_operation" "member-email-lookup-member-info
   display_name = "Member Email  - Lookup Member Info"
   method = "POST"
   operation_id = "member-email-lookup-member-info"
-  url_template = "/programs/{programCode}/members/{externalMemberId}/source/{source}/emails"
+  url_template = "/programs/{programCode}/members/{valueOfExternalMemberId}/source/{source}/emails"
 
   template_parameter {
     name = "programCode"
@@ -66,7 +72,7 @@ resource "azurerm_api_management_api_operation" "member-email-lookup-member-info
     type = "string"
   }
   template_parameter {
-    name = "externalMemberId"
+    name = "valueOfExternalMemberId"
     required = true
     type = "string"
   }
@@ -79,6 +85,8 @@ resource "azurerm_api_management_api_operation" "member-email-lookup-member-info
     description = "{ \"templateId\":\"5840068\",\n\"details\": {\"merchantName\":\"Apple\",\n            \"transactionDate\": \"2022-05-11T15:25:01\",\n            \"rewardAmount\": \"200\",\n            \"rewardType\" : \"points\",\n            \"currentYear\" : \"2022\"}}"
     representation {
       content_type = "application/json"
+      schema_id = "${var.post_email_schema_id}"
+      type_name = "${var.post_email_type_name}"
 
       example {
         name="default"

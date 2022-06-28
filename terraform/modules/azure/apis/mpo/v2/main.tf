@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=2.99.0"
+      version = "=3.10.0"
     }
   }
   backend "azurerm" {}
@@ -47,6 +47,12 @@ resource "azurerm_api_management_api_schema" "deposit_schema" {
 }
 
 
+variable "post_deposit_schema_id" {
+  default = ""
+}
+variable "post_deposit_type_name" {
+  default = ""
+}
 resource "azurerm_api_management_api_operation" "deposit" {
   api_management_name = "${var.apim_name}"
   resource_group_name = "${var.resource_group_name}"
@@ -70,10 +76,12 @@ resource "azurerm_api_management_api_operation" "deposit" {
   }
   request {
     representation {
+      schema_id = "${var.post_deposit_schema_id}"
+      type_name = "${var.post_deposit_type_name}"
       content_type = "application/json"
       example{
         name="default"
-        value=jsonencode({amount="200",currency="NABRWDS",dataPartner="NAB",description="Alla Test", interactionType="value"})
+        value=jsonencode({amount=200,currency="NABRWDS",dataPartner="NAB",description="Alla test", interactionType="value",originalTransactionId="1234567890"})
       }
 
     }

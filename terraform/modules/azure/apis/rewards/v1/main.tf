@@ -15,7 +15,9 @@ variable "apim_name" {
 }
 variable "resource_group_name" {
 }
+variable "post_click_type_name" {default = ""}
 
+variable "post_click_schema_id" {default = ""}
 
 
 data "azurerm_api_management_api_version_set" versionset{
@@ -346,10 +348,10 @@ resource "azurerm_api_management_api_operation" "create-post-member-click" {
       example {
         name = "default"
         value = jsonencode({memberId={source="LID",value="123456"},language="en",categoryId="123"})
-        # TODO Update this value
+
       }
-      #type_name="request"
-      #schema_id = azurerm_api_management_api_schema.request.schema_id
+      type_name="${var.post_click_type_name}"
+      schema_id = "${var.post_click_schema_id}"
     }
   }
 }
